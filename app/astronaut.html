@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Astronaut Health Report</title>
+<style>
+  :root{color-scheme:dark;--bg:#0b1020;--panel:#141a2e;--line:#26304a;--text:#e8ecf6;--muted:#93a0bd;--blue:#5ea0ff;--green:#57d98a;--amber:#ffc65c;--red:#ff5d6c}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:#080c18;color:var(--text);font:15px/1.55 "Segoe UI",system-ui,Arial,sans-serif}
+  .background-video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;z-index:0}
+  .background-overlay{position:fixed;inset:0;background:rgba(5,9,20,.68);pointer-events:none;z-index:1}
+  header,main{position:relative;z-index:2}
+  header{display:flex;justify-content:space-between;align-items:center;padding:20px max(22px,calc((100vw - 1200px)/2));border-bottom:1px solid rgba(147,160,189,.28);background:#0b1020}
+  h1{font-size:21px;margin:0} h2{font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px}
+  main{max-width:1200px;margin:0 auto;padding:24px 26px 50px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:16px}
+  .login{max-width:540px;margin:9vh auto}.muted{color:var(--muted)}.hidden{display:none!important}
+  .crew-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+  .astronaut-card{position:relative;min-height:250px;padding:22px;border:1px solid rgba(232,236,246,.35);border-radius:16px;overflow:hidden;text-align:left;color:var(--text);background:rgba(11,16,32,.65);isolation:isolate;box-shadow:0 12px 32px rgba(0,0,0,.24);transition:transform .18s ease,border-color .18s ease}
+  .astronaut-card::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(8,12,24,.2),rgba(8,12,24,.8)),url("/assets/images/card_background.jpg") center/cover;opacity:.65}
+  .astronaut-card:hover,.astronaut-card:focus-visible{transform:translateY(-3px);border-color:var(--blue);outline:2px solid var(--blue);outline-offset:2px}
+  .astronaut-card .crew-id{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#d4deef}
+  .astronaut-card .crew-name{display:block;font-size:23px;line-height:1.2;margin:32px 0 8px}
+  .astronaut-card .crew-role{color:#d4deef}
+  .card-vitals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:18px}
+  .card-vital{padding:7px 8px;background:rgba(5,9,20,.62);border:1px solid rgba(232,236,246,.14);border-radius:8px}
+  .card-vital-label{display:block;color:#d4deef;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+  .card-vital-value{font-size:15px;font-weight:700;white-space:nowrap}
+  .home-title{margin-bottom:20px}
+  label{display:block;color:var(--muted);font-size:13px;margin:14px 0 5px}
+  input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:#1b2338;color:var(--text);font:inherit}
+  button{border:0;border-radius:8px;padding:10px 15px;background:var(--blue);color:#07101f;font:inherit;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.6;cursor:wait}.logout,.secondary{background:#1b2338;color:var(--text);border:1px solid var(--line)}
+  .error{color:var(--red);min-height:1.5em;margin-top:10px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}.stat .value{font-size:25px;font-weight:650;margin-top:4px}
+  .badge{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:650}
+  .normal,.safe{color:var(--green)}.watch,.rising{color:var(--amber)}.alert,.elevated,.above_safe{color:var(--red)}.low{color:var(--green)}
+  ul{padding-left:22px;margin:8px 0 0}li{margin:7px 0}.notice{border-left:3px solid var(--amber);padding:10px 13px;background:#1b2338;color:var(--muted);font-size:13px}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:0 18px}.metric{padding:9px 0;border-bottom:1px solid var(--line)}
+  .metric strong{float:right}.subhead{color:var(--muted);margin:3px 0 0}
+  .chart-panel{background:rgba(20,26,46,.96);border:1px solid var(--line);border-radius:12px;padding:15px 17px;margin:16px 0}
+  .chart-controls{display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin:8px 0 12px}
+  .chart-controls label{margin:0}
+  .chart-controls select{display:block;min-width:190px;margin-top:4px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#1b2338;color:var(--text);font:inherit}
+  .trend-chart{display:block;width:100%;height:auto;min-height:220px;overflow:visible}
+  .chart-caption{color:var(--muted);font-size:13px;margin:8px 0 0}
+  .chart-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;color:var(--muted);font-size:12px}
+  .chart-legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .status-banner{font-size:18px;font-weight:700;padding:14px;border:1px solid var(--line);border-radius:10px;margin:14px 0}
+  .earth-escalation{margin:12px 0;border-left-color:var(--red);background:rgba(255,93,108,.12);color:var(--text)}
+  .companion-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+  .companion-card{background:#10182b;border:1px solid var(--line);border-radius:11px;padding:14px}
+  .companion-card h3{margin:0 0 8px;font-size:16px}
+  .wellbeing-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end}
+  .wellbeing-form label{margin:0}
+  .wellbeing-form input,.wellbeing-form select{display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#1b2338;color:var(--text);font:inherit}
+  .wellbeing-form button{grid-column:1/-1;justify-self:start}
+  .body-map-layout{display:grid;grid-template-columns:minmax(150px,250px) 1fr;gap:18px;align-items:center}
+  .body-map-svg{width:100%;height:auto;max-height:360px}
+  .body-map-svg [role=button]{cursor:pointer}
+  .body-map-svg [role=button]:focus{outline:none}
+  .body-map-svg [role=button]:focus circle,.body-map-svg [role=button]:hover circle{stroke:#fff;stroke-width:3}
+  .hazard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+  .hazard-tip{padding:11px;border:1px solid var(--line);border-radius:9px;background:#10182b}
+  .hazard-tip strong{display:block;margin-bottom:4px}
+  .checklist{list-style:none;padding:0}
+  .checklist li{display:flex;gap:9px;align-items:flex-start}
+  .checklist input{width:auto;margin-top:5px}
+  .summary-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:10px 0}
+  .summary-value{display:block;font-weight:700}
+  .badge-list{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+  .wellbeing-badge{border-color:#5ea0ff;color:#b9d5ff}
+  .review-table{width:100%;border-collapse:collapse;font-size:13px}
+  .review-table th,.review-table td{padding:8px;border-bottom:1px solid var(--line);text-align:left}
+  .local-queue-item{padding:8px;border-bottom:1px solid var(--line)}
+  .inline-error{min-height:1.4em;color:var(--red)}
+  @media(max-width:620px){.body-map-layout{grid-template-columns:1fr}.body-map-svg{max-height:280px}.review-table{display:block;overflow-x:auto}}
+  .agent-widget{position:fixed;left:18px;bottom:18px;z-index:5;width:min(370px,calc(100vw - 36px));font-size:14px}
+  .agent-panel{display:flex;flex-direction:column;max-height:min(72vh,620px);margin-bottom:10px;overflow:hidden;background:rgba(14,20,37,.98);border:1px solid #40506f;border-radius:14px;box-shadow:0 16px 46px rgba(0,0,0,.5)}
+  .agent-header{display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border-bottom:1px solid var(--line)}
+  .agent-header h2{margin:0;color:var(--text);text-transform:none;letter-spacing:0;font-size:16px}
+  .agent-close{padding:5px 10px;background:transparent;color:var(--text);border:1px solid var(--line)}
+  .agent-content{overflow:auto;padding:12px}
+  .agent-status{padding:10px;border:1px solid var(--line);border-radius:9px;background:#1b2338}
+  .agent-status strong{display:block;margin-bottom:4px}
+  .agent-advice{margin:6px 0 0;padding-left:20px}
+  .agent-chat{display:flex;flex-direction:column;gap:8px;max-height:180px;overflow:auto;margin:12px 0;padding:0 2px}
+  .agent-message{max-width:92%;margin:0;padding:8px 10px;border-radius:10px;background:#1b2338;white-space:pre-wrap;overflow-wrap:anywhere}
+  .agent-message.user{align-self:flex-end;background:#263a58}
+  .agent-message.agent{align-self:flex-start}
+  .agent-quick-actions{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+  .agent-quick-actions button{padding:6px 9px;font-size:12px}
+  .agent-news-list{padding-left:19px;margin:5px 0}
+  .agent-news-list a{color:#9bc5ff}
+  .agent-news-meta{display:block;color:var(--muted);font-size:11px}
+  .agent-form{display:flex;gap:7px;margin-top:8px}
+  .agent-form input{min-width:0;padding:9px}
+  .agent-form button{flex:none;padding:8px 11px}
+  .agent-privacy{margin:8px 0 0;color:var(--muted);font-size:11px}
+  .agent-launcher{display:flex;flex-direction:column;gap:7px}
+  .agent-preview{padding:9px 11px;background:rgba(14,20,37,.96);border:1px solid var(--line);border-radius:10px;color:var(--text);box-shadow:0 8px 25px rgba(0,0,0,.35);font-size:12px}
+  .agent-toggle{align-self:flex-start;box-shadow:0 8px 25px rgba(0,0,0,.4)}
+  .wearable-panel{background:rgba(20,26,46,.96);border:1px solid var(--line);border-radius:12px;padding:15px 17px;margin:16px 0}
+  .wearable-signal-controls{display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin:8px 0 12px}
+  .wearable-signal-controls label{margin:0}
+  .wearable-signal-controls select{display:block;min-width:190px;margin-top:4px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#1b2338;color:var(--text);font:inherit}
+  .wearable-chart{display:block;width:100%;height:320px;overflow:visible}
+  .wearable-chart-caption{color:var(--muted);font-size:13px;margin:8px 0 0}
+  .study-observation{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:10px;background:rgba(27,35,56,.88);margin:14px 0}
+  .study-observation strong{display:block}
+  .study-observation p{margin:2px 0 0;color:var(--muted);font-size:13px}
+  .wearable-disclaimer{margin-top:16px}
+  @media(max-width:560px){header{padding:16px 18px}main{padding:22px 14px}.panel{padding:17px}.wearable-chart{height:280px}.chart-controls select,.wearable-signal-controls select{min-width:0;width:100%}}
+</style>
+</head>
+<body>
+<video class="background-video" autoplay muted loop playsinline aria-hidden="true" tabindex="-1">
+  <source src="/assets/videos/background.mp4" type="video/mp4">
+</video>
+<div class="background-overlay" aria-hidden="true"></div>
+<header>
+  <div><h1 id="siteTitle">🩺 Astronaut Health Report</h1><div id="accessMode" class="muted">Private crew-member view</div></div>
+  <button id="logout" class="logout hidden" type="button">Switch astronaut / sign out</button>
+</header>
+<main>
+  <section id="crewHome">
+    <div class="home-title"><h2 id="homeSectionTitle">Select an astronaut</h2><p id="crewInstructions" class="muted">Choose a crew card.</p></div>
+    <div id="crewCards" class="crew-grid"></div>
+    <button id="doctorBoardToggle" class="secondary hidden" type="button">Open synthetic demo review board</button>
+    <section id="doctorBoard" class="panel hidden">
+      <h2>Synthetic crew review board</h2>
+      <p class="notice">Public demo only. All displayed records are synthetic; this is not a clinician console and must not be used for care.</p>
+      <div id="doctorBoardContent"></div>
+    </section>
+    <p id="crewLoadError" class="error" role="alert"></p>
+  </section>
+  <section id="missionPanel" class="panel login hidden">
+    <h2>Enter mission number</h2>
+    <h3 id="selectedAstronaut"></h3>
+    <p class="muted">Enter your private 20-digit mission number to open your health report. Keep this number confidential.</p>
+    <form id="missionNumberForm">
+      <label for="missionNumber">Private mission number</label>
+      <input id="missionNumber" name="missionNumber" type="text" inputmode="numeric" pattern="[0-9]{20}" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+      <p id="loginError" class="error" role="alert"></p>
+      <button id="loginButton" type="submit">Open personal report</button>
+    </form>
+    <button id="backToCrew" class="secondary" type="button">Back to astronauts</button>
+  </section>
+  <section id="wearableReport" class="hidden">
+    <div class="panel">
+      <h2>Wearable study participant</h2>
+      <h3 id="wearableParticipantName"></h3>
+      <p id="wearableMeta" class="subhead"></p>
+      <div id="wearableStats" class="grid"></div>
+    </div>
+    <div class="study-observation">
+      <span aria-hidden="true">ⓘ</span>
+      <div><strong>Study observations — not a health alert</strong><p id="studyObservation"></p></div>
+    </div>
+    <section class="chart-panel">
+      <h2 id="wearableSignalTitle">Wearable signal</h2>
+      <div class="chart-controls">
+        <label>Study session
+          <select id="wearableActivity">
+            <option value="stress">Induced stress</option>
+            <option value="aerobic">Aerobic exercise</option>
+            <option value="anaerobic">Anaerobic exercise</option>
+          </select>
+        </label>
+        <label>Health indicator
+          <select id="wearableSignal"></select>
+        </label>
+        <label>View
+          <select id="wearableSignalView">
+            <option value="deviation">Rise/drop from session mean (0 centred)</option>
+            <option value="actual">Actual values</option>
+          </select>
+        </label>
+      </div>
+      <svg id="wearableSignalChart" class="wearable-chart" viewBox="0 0 1000 320" preserveAspectRatio="none" role="img" aria-label="Wearable signal over time, optionally shown as deviation from its session mean"></svg>
+      <div id="wearableSignalLegend" class="chart-legend"></div>
+      <p id="wearableSignalCaption" class="wearable-chart-caption"></p>
+    </section>
+    <section class="wearable-panel">
+      <h2 id="stressRatingTitle">Self-reported stress by study stage</h2>
+      <div class="chart-controls">
+        <label>View
+          <select id="stressRatingView">
+            <option value="actual">Actual self-reported scores</option>
+            <option value="deviation">Rise/drop from stage mean (0 centred)</option>
+          </select>
+        </label>
+      </div>
+      <svg id="stressRatingChart" class="wearable-chart" viewBox="0 0 1000 320" preserveAspectRatio="none" role="img" aria-label="Participant self-reported stress scores by study stage"></svg>
+      <div id="stressRatingLegend" class="chart-legend"></div>
+      <p id="stressRatingCaption" class="wearable-chart-caption"></p>
+    </section>
+    <div class="notice wearable-disclaimer">Research and interface demonstration only. This dashboard combines historical study measurements with generated example values; it is not live astronaut monitoring or clinical guidance. It does not provide diagnoses, risk classifications, or medical thresholds. Dataset signal charts use time-bin averages for display; summary statistics use all source samples. Contains information from the <a href="https://physionet.org/content/wearable-device-dataset-from-induced-stress-and-structured-exercise-sessions/1.0.1/" target="_blank" rel="noopener noreferrer">Wearable Device Dataset from Induced Stress and Structured Exercise Sessions</a>, made available under the <a href="https://opendatacommons.org/licenses/by/1-0/" target="_blank" rel="noopener noreferrer">ODC Attribution License</a>.</div>
+  </section>
+  <section id="report" class="hidden">
+    <div class="panel">
+      <h2>Personal report</h2>
+      <h3 id="astronautName"></h3><p id="reportMeta" class="subhead"></p>
+      <div id="riskIndicator" class="status-banner"></div>
+      <p id="riskContext" class="muted"></p>
+      <div id="earthEscalation" class="notice earth-escalation hidden" role="alert"></div>
+      <button id="exportHandoff" class="secondary hidden" type="button">Export Earth-doctor review report</button>
+      <div id="stats" class="grid"></div>
+    </div>
+    <div class="panel"><h2>Condition signals</h2><p id="signals" class="muted"></p><ul id="signalList"></ul></div>
+    <div class="panel"><h2>Suggested follow-up</h2><ul id="advice"></ul></div>
+    <div class="panel"><h2>Latest measurements</h2><div id="measurements" class="metrics"></div></div>
+    <section class="chart-panel">
+      <h2 id="indicatorChartTitle">Indicator trend</h2>
+      <div class="chart-controls">
+        <label>Health indicator
+          <select id="trendMetric">
+            <option value="heart_rate_bpm">Heart rate</option>
+            <option value="systolic_bp_mmHg">Systolic blood pressure</option>
+            <option value="diastolic_bp_mmHg">Diastolic blood pressure</option>
+            <option value="body_temp_c">Body temperature</option>
+            <option value="spo2_pct">Blood oxygen (SpO₂)</option>
+            <option value="resp_rate_bpm">Respiratory rate</option>
+            <option value="sleep_hours">Sleep</option>
+            <option value="mood_score_1_10">Mood self-report</option>
+            <option value="cognitive_score_0_100">Cognitive score</option>
+            <option value="bone_density_pct_change">Bone-density change</option>
+            <option value="muscle_mass_pct_change">Muscle-mass change</option>
+            <option value="wbc_1e9_per_L">White blood cells</option>
+            <option value="crp_mg_per_L">CRP</option>
+            <option value="radiation_dose_mSv_day">Daily radiation dose</option>
+            <option value="radiation_dose_cumulative_mSv">Cumulative radiation dose</option>
+            <option value="cabin_co2_ppm">Cabin CO₂</option>
+          </select>
+        </label>
+        <label>View
+          <select id="trendView">
+            <option value="deviation">Rise/drop from baseline (0 centred)</option>
+            <option value="actual">Actual values</option>
+          </select>
+        </label>
+      </div>
+      <svg id="indicatorChart" class="trend-chart" viewBox="0 0 1000 320" preserveAspectRatio="none" role="img" aria-label="Selected health indicator trend"></svg>
+      <p id="indicatorChartCaption" class="chart-caption"></p>
+    </section>
+    <section class="chart-panel">
+      <h2>Predicted next-day risk trend</h2>
+      <svg id="riskChart" class="trend-chart" viewBox="0 0 1000 300" preserveAspectRatio="none" role="img" aria-label="Predicted risk deviation from mission average"></svg>
+      <p id="riskChartCaption" class="chart-caption">Risk is shown as percentage-point deviation from this astronaut's mission average, not as the absolute probability.</p>
+    </section>
+    <section id="companionPanel" class="panel hidden">
+      <h2>Daily wellbeing and prevention</h2>
+      <p class="muted">Demo check-ins are separate from sensor readings and do not change the risk model. Follow mission-approved medical and exercise plans.</p>
+      <div id="checkinReminder" class="notice" role="status"></div>
+      <div class="companion-card">
+        <h3>Scheduled browser reminder · demo</h3>
+        <label for="reminderTime">Reminder time (your device's local time)</label>
+        <input id="reminderTime" type="time" value="09:00">
+        <button id="enableReminder" class="secondary" type="button">Enable daily browser reminder</button>
+        <p id="reminderStatus" class="muted" role="status">Reminders are off. Enable them while this page is open; this browser cannot remind you after the app is closed.</p>
+      </div>
+      <div class="companion-grid">
+        <div class="companion-card">
+          <h3>Daily health measurements</h3>
+          <p class="muted">Enter a complete demonstration reading. Saving advances the demo mission by one day; it does not represent live telemetry.</p>
+          <form id="measurementForm" class="wellbeing-form">
+            <label>Heart rate (bpm)<input name="heart_rate_bpm" type="number" step="0.1" required></label>
+            <label>Systolic BP (mmHg)<input name="systolic_bp_mmHg" type="number" step="0.1" required></label>
+            <label>Diastolic BP (mmHg)<input name="diastolic_bp_mmHg" type="number" step="0.1" required></label>
+            <label>SpO₂ (%)<input name="spo2_pct" type="number" step="0.1" required></label>
+            <label>Respiratory rate (/min)<input name="resp_rate_bpm" type="number" step="0.1" required></label>
+            <label>Temperature (°C)<input name="body_temp_c" type="number" step="0.01" required></label>
+            <label>Sleep (hours)<input name="sleep_hours" type="number" step="0.1" required></label>
+            <label>Mood self-report (/10)<input name="mood_score_1_10" type="number" step="0.1" required></label>
+            <label>Cognitive score (/100)<input name="cognitive_score_0_100" type="number" step="0.1" required></label>
+            <label>Bone-density change (%)<input name="bone_density_pct_change" type="number" step="0.001" required></label>
+            <label>Muscle-mass change (%)<input name="muscle_mass_pct_change" type="number" step="0.001" required></label>
+            <label>White blood cells (10⁹/L)<input name="wbc_1e9_per_L" type="number" step="0.01" required></label>
+            <label>CRP (mg/L)<input name="crp_mg_per_L" type="number" step="0.01" required></label>
+            <label>Radiation dose (mSv/day)<input name="radiation_dose_mSv_day" type="number" step="0.001" required></label>
+            <label>Cumulative radiation (mSv)<input name="radiation_dose_cumulative_mSv" type="number" step="0.001" required></label>
+            <label>Cabin CO₂ (ppm)<input name="cabin_co2_ppm" type="number" step="1" required></label>
+            <button type="submit">Save daily measurement</button>
+          </form>
+          <p id="measurementStatus" role="status"></p>
+        </div>
+        <div class="companion-card">
+          <h3>Daily check-in</h3>
+          <form id="wellbeingForm" class="wellbeing-form">
+            <label>Sleep (hours)
+              <input name="sleep_hours" type="number" min="0" max="24" step="0.1" required>
+            </label>
+            <label>Exercise (minutes)
+              <input name="exercise_minutes" type="number" min="0" max="600" step="1" required>
+            </label>
+            <label>Activity
+              <select name="exercise_type">
+                <option value="aerobic">Aerobic</option>
+                <option value="strength">Strength</option>
+                <option value="mobility">Mobility</option>
+                <option value="rest">Rest / recovery</option>
+              </select>
+            </label>
+            <label>Stress self-rating (1–10)
+              <input name="stress_score" type="number" min="1" max="10" step="1" required>
+            </label>
+            <button type="submit">Save today's check-in</button>
+          </form>
+          <p id="checkinStatus" class="inline-error" role="status"></p>
+          <div id="checkinBadges" class="badge-list"></div>
+          <div id="checkinHistory"></div>
+        </div>
+        <div class="companion-card">
+          <h3>Mission environment view</h3>
+          <label for="environmentMode">Environment mode</label>
+          <select id="environmentMode">
+            <option value="spacecraft">Spacecraft</option>
+            <option value="iss">ISS</option>
+            <option value="lunar">Lunar base</option>
+          </select>
+          <p id="environmentNote" class="muted"></p>
+          <h3>NASA HRP hazard awareness</h3>
+          <div class="hazard-grid">
+            <div class="hazard-tip"><strong>Microgravity / countermeasures</strong>Review the mission exercise schedule and record completed sessions; follow the approved crew plan.</div>
+            <div class="hazard-tip"><strong>Isolation / behavioral health</strong>Use scheduled crew check-ins and the mission's established confidential support channel when needed.</div>
+            <div class="hazard-tip"><strong>Space radiation</strong>Follow mission-control radiation updates and the approved shelter procedures.</div>
+            <div class="hazard-tip"><strong>Distance from Earth</strong>Know the mission medical communication procedure and include symptoms and timing when requesting help.</div>
+          </div>
+          <p class="muted">Educational prompts linked to NASA Human Research Program hazard areas, not NASA medical protocols or treatment recommendations. <a href="https://www.nasa.gov/hrp/" target="_blank" rel="noopener noreferrer">NASA HRP</a>.</p>
+        </div>
+      </div>
+    </section>
+    <section id="bodyPanel" class="panel hidden">
+      <h2>Clickable body-system trend map</h2>
+      <p class="muted">Select a marker to graph its related indicator. This is a navigation aid, not a medical body map or diagnostic visualization.</p>
+      <div class="body-map-layout">
+        <svg class="body-map-svg" viewBox="0 0 240 410" role="img" aria-labelledby="bodyMapTitle bodyMapDescription">
+          <title id="bodyMapTitle">Astronaut body-system trend map</title>
+          <desc id="bodyMapDescription">Select a highlighted system marker to view its associated indicator history.</desc>
+          <path d="M92 45 C70 50 61 74 66 99 L76 139 L62 188 L77 221 L84 178 L89 146 L87 219 L75 290 L80 355 L94 355 L105 270 L113 233 L121 270 L132 355 L147 355 L150 290 L137 219 L142 146 L151 178 L158 221 L173 188 L159 139 L169 99 C174 74 165 50 143 45 C132 56 103 56 92 45Z" fill="#263653" stroke="#90a8cb" stroke-width="2"/>
+          <circle cx="118" cy="33" r="24" fill="#263653" stroke="#90a8cb" stroke-width="2"/>
+          <g role="button" tabindex="0" aria-label="Brain and behavioral health: mood self-report" data-body-metric="mood_score_1_10"><circle cx="118" cy="31" r="9" fill="#c28fff"/><text x="118" y="35" text-anchor="middle" fill="#07101f" font-size="9">M</text></g>
+          <g role="button" tabindex="0" aria-label="Heart and circulation: heart rate" data-body-metric="heart_rate_bpm"><circle cx="111" cy="112" r="10" fill="#ff7080"/><text x="111" y="116" text-anchor="middle" fill="#07101f" font-size="9">H</text></g>
+          <g role="button" tabindex="0" aria-label="Lungs and breathing: oxygen and respiratory rate" data-body-metric="spo2_pct"><circle cx="130" cy="111" r="10" fill="#75d9e8"/><text x="130" y="115" text-anchor="middle" fill="#07101f" font-size="9">L</text></g>
+          <g role="button" tabindex="0" aria-label="Bone and muscle: bone-density change" data-body-metric="bone_density_pct_change"><circle cx="118" cy="193" r="10" fill="#ffc65c"/><text x="118" y="197" text-anchor="middle" fill="#07101f" font-size="9">B</text></g>
+          <g role="button" tabindex="0" aria-label="Immune health: white blood cells" data-body-metric="wbc_1e9_per_L"><circle cx="139" cy="156" r="10" fill="#8fe08a"/><text x="139" y="160" text-anchor="middle" fill="#07101f" font-size="9">I</text></g>
+        </svg>
+        <div>
+          <p id="bodyMapSelection" class="muted">Choose a highlighted body marker.</p>
+          <p>Additional indicator groups:</p>
+          <div class="chart-controls">
+            <button class="secondary body-indicator-button" type="button" data-body-metric="radiation_dose_mSv_day">Radiation exposure</button>
+            <button class="secondary body-indicator-button" type="button" data-body-metric="cabin_co2_ppm">Spacecraft environment</button>
+            <button class="secondary body-indicator-button" type="button" data-body-metric="sleep_hours">Sleep / recovery</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="weeklyPanel" class="panel hidden">
+      <h2>7-day trend summary · flight-surgeon review</h2>
+      <p id="weeklyMeta" class="muted"></p>
+      <div id="weeklySummary" class="summary-list"></div>
+      <p class="muted">Trends summarize the latest recorded demo readings. They are not a diagnosis, clinical interpretation, or automatically shared doctor dashboard.</p>
+    </section>
+    <section id="emergencyPanel" class="panel hidden" role="alert">
+      <h2>Above-safe review workflow</h2>
+      <p id="emergencyMessage"></p>
+      <ul class="checklist">
+        <li><input type="checkbox" id="emergencyProtocol"><label for="emergencyProtocol">Follow the established mission medical protocol and contact the onboard medical lead / flight surgeon promptly.</label></li>
+        <li><input type="checkbox" id="emergencySymptoms"><label for="emergencySymptoms">Share symptoms, when they began, and this report with the qualified medical professional.</label></li>
+        <li><input type="checkbox" id="emergencyGuidance"><label for="emergencyGuidance">Use clinician instructions; do not treat this demonstration score or its advice as a diagnosis.</label></li>
+      </ul>
+      <label class="checklist"><input type="checkbox" id="urgentSymptoms"> I am reporting urgent symptoms (for example, chest pain or severe breathing difficulty).</label>
+      <button id="queueEmergencyReport" type="button">Queue local review report</button>
+      <p id="emergencyQueueStatus" role="status"></p>
+      <div id="localHandoffList"></div>
+      <p class="muted">Queueing saves the report on this server only. It is not sent to Earth or emergency services.</p>
+    </section>
+    <div class="notice">Decision-support demonstration only. The dataset is simulated; model scores and thresholds are illustrative and are not clinically validated. This report does not diagnose a condition or replace a doctor. Follow mission medical protocols and contact the flight surgeon for concerning readings or symptoms. No Earth-station receiver is configured: the report is shown here, and export downloads a local file without transmitting data.</div>
+  </section>
+  <p id="pageError" class="error" role="alert"></p>
+</main>
+<aside id="agentWidget" class="agent-widget" aria-label="Crew wellbeing support">
+  <section id="agentPanel" class="agent-panel hidden" role="dialog" aria-labelledby="agentTitle">
+    <div class="agent-header">
+      <h2 id="agentTitle">Crew wellbeing agent</h2>
+      <button id="agentClose" class="agent-close" type="button" aria-label="Close agent">Close</button>
+    </div>
+    <div class="agent-content">
+      <div class="agent-status" aria-live="polite">
+        <strong id="agentStatusTitle">Report-based guidance</strong>
+        <span id="agentStatusText">Select an astronaut to see guidance from their report.</span>
+        <ul id="agentAdvice" class="agent-advice"></ul>
+      </div>
+      <div id="agentMessages" class="agent-chat" role="log" aria-live="polite" aria-label="Conversation">
+        <p class="agent-message agent">Hi! I can discuss the selected report, offer a simple stress reset, or fetch recent sports and entertainment headlines. I’m not a clinician.</p>
+      </div>
+      <div class="agent-quick-actions" aria-label="Conversation topics">
+        <button class="secondary" type="button" data-agent-action="stress">Stress reset</button>
+        <button class="secondary" type="button" data-agent-action="sports">Sports headlines</button>
+        <button class="secondary" type="button" data-agent-action="entertainment">Entertainment headlines</button>
+      </div>
+      <form id="agentForm" class="agent-form">
+        <input id="agentInput" type="text" maxlength="500" autocomplete="off" aria-label="Message the wellbeing agent" placeholder="Chat or ask for a topic">
+        <button type="submit">Send</button>
+      </form>
+      <p class="agent-privacy">Guided replies stay in this browser. Live headlines come from BBC feeds; no chat or health data is sent with news requests. Not medical care.</p>
+    </div>
+  </section>
+  <div class="agent-launcher">
+    <div id="agentPreview" class="agent-preview" aria-live="polite">Choose an astronaut for report-based guidance, or open chat for a stress reset and live headlines.</div>
+    <button id="agentToggle" class="agent-toggle" type="button" aria-expanded="false" aria-controls="agentPanel">💬 Crew wellbeing agent</button>
+  </div>
+</aside>
+<script>
+const crewHome=document.getElementById("crewHome");
+const missionPanel=document.getElementById("missionPanel");
+const report=document.getElementById("report");
+const wearableReport=document.getElementById("wearableReport");
+const pageError=document.getElementById("pageError");
+const logout=document.getElementById("logout");
+const agentPanel=document.getElementById("agentPanel");
+const agentMessages=document.getElementById("agentMessages");
+let selectedCrewId=null;
+let publicReports=false;
+let wearableMode=false;
+let reportHistory=[];
+let currentReport=null;
+let healthIndicators=[];
+let dailyReminderTimer=null;
+const trendMetricInfo={
+  heart_rate_bpm:{label:"Heart rate",unit:"bpm"},
+  systolic_bp_mmHg:{label:"Systolic blood pressure",unit:"mmHg"},
+  diastolic_bp_mmHg:{label:"Diastolic blood pressure",unit:"mmHg"},
+  body_temp_c:{label:"Body temperature",unit:"°C"},
+  spo2_pct:{label:"Blood oxygen (SpO₂)",unit:"%"},
+  resp_rate_bpm:{label:"Respiratory rate",unit:"breaths/min"},
+  sleep_hours:{label:"Sleep",unit:"hours"},
+  mood_score_1_10:{label:"Mood self-report",unit:"/10"},
+  cognitive_score_0_100:{label:"Cognitive score",unit:"/100"},
+  bone_density_pct_change:{label:"Bone-density change",unit:"%"},
+  muscle_mass_pct_change:{label:"Muscle-mass change",unit:"%"},
+  wbc_1e9_per_L:{label:"White blood cells",unit:"10⁹/L"},
+  crp_mg_per_L:{label:"CRP",unit:"mg/L"},
+  radiation_dose_mSv_day:{label:"Daily radiation dose",unit:"mSv/day"},
+  radiation_dose_cumulative_mSv:{label:"Cumulative radiation dose",unit:"mSv"},
+  cabin_co2_ppm:{label:"Cabin CO₂",unit:"ppm"}
+};
+const metricLabels={
+  heart_rate_bpm:["Heart rate","bpm"],systolic_bp_mmHg:["Systolic blood pressure","mmHg"],diastolic_bp_mmHg:["Diastolic blood pressure","mmHg"],
+  spo2_pct:["Blood oxygen (SpO₂)","%"],resp_rate_bpm:["Respiratory rate","/min"],body_temp_c:["Body temperature","°C"],
+  sleep_hours:["Sleep","hours"],mood_score_1_10:["Mood self-report","/10"],cognitive_score_0_100:["Cognitive score","/100"],
+  bone_density_pct_change:["Bone-density change","%"],muscle_mass_pct_change:["Muscle-mass change","%"],
+  wbc_1e9_per_L:["White blood cells","10⁹/L"],crp_mg_per_L:["CRP","mg/L"],
+  radiation_dose_mSv_day:["Daily radiation dose","mSv/day"],radiation_dose_cumulative_mSv:["Cumulative radiation dose","mSv"],
+  cabin_co2_ppm:["Cabin CO₂","ppm"]
+};
+function element(tag,className,text){const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node}
+function stat(label,value,cls){const node=element("div","stat");node.append(element("div","muted",label));node.append(element("div","value "+(cls||""),value));return node}
+async function request(path,options){const response=await fetch(path,{credentials:"same-origin",...options,headers:{"Content-Type":"application/json",...(options&&options.headers||{})}});const data=await response.json();if(!response.ok)throw new Error(data.error||"Request failed.");return data}
+function render(data){
+  crewHome.classList.add("hidden");missionPanel.classList.add("hidden");wearableReport.classList.add("hidden");report.classList.remove("hidden");logout.classList.remove("hidden");
+  currentReport=data;
+  updateAgentReport(data);
+  reportHistory=Array.isArray(data.history)?data.history:[];
+  document.getElementById("astronautName").textContent=`${data.profile.name} · ${data.profile.role}`;
+  document.getElementById("reportMeta").textContent=`${data.crew_id} · ${data.latest.date_utc} · Mission day ${data.latest.mission_day}`;
+  const indicator=data.risk_indicator;
+  const banner=document.getElementById("riskIndicator");
+  banner.className=`status-banner ${indicator.state}`;
+  banner.textContent=`${indicator.label} — ${(data.prediction.risk_probability*100).toFixed(1)}% model risk estimate`;
+  const escalation=document.getElementById("earthEscalation");
+  escalation.classList.toggle("hidden",indicator.state!=="above_safe");
+  escalation.textContent=indicator.state==="above_safe"
+    ?"Above-safe indicator triggered by the risk score or a rule alert: consult an Earth-based doctor or flight surgeon promptly under mission protocol. Your report is shown below. This demo has no Earth-station receiver, so it has not been sent; use the export button for a local handoff."
+    :"";
+  const baselineText=indicator.baseline_set
+    ? `Earth-side B-score: ${(indicator.personal_baseline*100).toFixed(1)}% (recorded ${indicator.baseline_recorded_at})`
+    : indicator.baseline_stale
+      ? "Stored Earth-side B-score was generated by a different model; record a new preflight check-up."
+      : "Earth-side B-score has not been recorded.";
+  document.getElementById("riskContext").textContent=
+    `${baselineText} · Rising line: ${(indicator.rising_line*100).toFixed(1)}% · Safe line: ${(indicator.safe_line*100).toFixed(1)}%. The safe line is the lower of the B-score and trained-model threshold; model references are illustrative, not clinical thresholds.`;
+  renderCompanion(data);
+  const exportButton=document.getElementById("exportHandoff");
+  exportButton.classList.toggle("hidden",!indicator.flight_surgeon_follow_up);
+  exportButton.onclick=()=>downloadHandoff(data);
+  const stats=document.getElementById("stats");stats.replaceChildren(
+    stat("Rule-based status",data.status.level.toUpperCase(),data.status.level),
+    stat("Personal risk indicator",indicator.label,indicator.state),
+    stat("Next-day elevated-risk estimate",`${(data.prediction.risk_probability*100).toFixed(1)}%`,data.prediction.risk_level),
+    stat("Model threshold",`${(data.prediction.threshold*100).toFixed(0)}%`)
+  );
+  const signals=document.getElementById("signalList");signals.replaceChildren();
+  for(const message of data.status.reasons)signals.append(element("li","",message));
+  document.getElementById("signals").textContent=data.status.reasons.length?"Rule-based indicators requiring attention (not diagnoses):":"No configured alert thresholds were crossed in the latest reading.";
+  const advice=document.getElementById("advice");advice.replaceChildren();
+  for(const item of data.advice)advice.append(element("li","",item));
+  const measurements=document.getElementById("measurements");measurements.replaceChildren();
+  for(const [key,[label,unit]] of Object.entries(metricLabels)){
+    const value=data.latest[key];if(value===null||value===undefined||value==="")continue;
+    const item=element("div","metric");item.append(element("span","muted",label));item.append(element("strong","",`${value} ${unit}`));measurements.append(item);
+  }
+  drawTrendCharts();
+}
+function renderCompanion(data){
+  const companionPanel=document.getElementById("companionPanel");
+  const bodyPanel=document.getElementById("bodyPanel");
+  const weeklyPanel=document.getElementById("weeklyPanel");
+  const emergencyPanel=document.getElementById("emergencyPanel");
+  const companion=data.companion;
+  companionPanel.classList.toggle("hidden",!companion);
+  bodyPanel.classList.toggle("hidden",!data.history?.length);
+  weeklyPanel.classList.toggle("hidden",!data.weekly_summary);
+  emergencyPanel.classList.toggle("hidden",!companion);
+  if(companion){
+    const reminder=document.getElementById("checkinReminder");
+    reminder.textContent=companion.measurement_due
+      ?`Daily health measurements are due. Last recorded demo measurement: ${companion.last_measurement_date||"none"}. This in-app reminder appears when you open the report.`
+      :`Today's health measurement is recorded. You can also complete the separate wellbeing check-in.`;
+    const savedReminder=localStorage.getItem(`astronaut-reminder-time:${data.crew_id}`);
+    if(savedReminder&&/^\d{2}:\d{2}$/.test(savedReminder)){
+      document.getElementById("reminderTime").value=savedReminder;
+    }
+    updateReminderStatus();
+    const measurementForm=document.getElementById("measurementForm");
+    for(const input of measurementForm.elements){
+      if(input.name&&data.latest[input.name]!==undefined){
+        input.value=data.latest[input.name];
+      }
+      function updateReminderStatus(message){
+        if(message){
+          document.getElementById("reminderStatus").textContent=message;
+          return;
+        }
+        const status=window.Notification?Notification.permission:"unsupported";
+        document.getElementById("reminderStatus").textContent=status==="granted"
+          ?"Daily browser reminder is enabled while this page remains open. The browser may show a generic reminder; no health values are included."
+          :status==="denied"
+            ?"Browser notifications are blocked. Allow notifications in browser site settings, then enable reminders again."
+            :"Reminders are off. Enable them while this page is open; this browser cannot remind you after the app is closed.";
+      }
+      async function enableDailyReminder(){
+        if(!("Notification" in window)){
+          updateReminderStatus("This browser does not support desktop notifications. In-app reminders remain available.");
+          return;
+        }
+        const time=document.getElementById("reminderTime").value;
+        if(!/^\d{2}:\d{2}$/.test(time)){
+          updateReminderStatus("Choose a valid local reminder time.");
+          return;
+        }
+        try{
+          const permission=Notification.permission==="granted"
+            ?"granted"
+            :await Notification.requestPermission();
+          if(permission!=="granted"){
+            updateReminderStatus("Notification permission was not granted; no browser notification is scheduled.");
+            return;
+          }
+          if(currentReport?.crew_id){
+            localStorage.setItem(`astronaut-reminder-time:${currentReport.crew_id}`,time);
+          }
+          if(dailyReminderTimer!==null)window.clearInterval(dailyReminderTimer);
+          dailyReminderTimer=window.setInterval(checkDailyReminder,30000);
+          updateReminderStatus();
+          checkDailyReminder();
+        }catch(error){
+          updateReminderStatus(`Could not enable the browser reminder: ${error.message}`);
+        }
+      }
+      function checkDailyReminder(){
+        if(!currentReport?.companion||!("Notification" in window)||Notification.permission!=="granted")return;
+        const [hours,minutes]=document.getElementById("reminderTime").value.split(":").map(Number);
+        const now=new Date();
+        if(now.getHours()<hours||(now.getHours()===hours&&now.getMinutes()<minutes))return;
+        if(!currentReport.companion.measurement_due&&!currentReport.companion.reminder_due)return;
+        const localDate=[
+          now.getFullYear(),
+          String(now.getMonth()+1).padStart(2,"0"),
+          String(now.getDate()).padStart(2,"0")
+        ].join("-");
+        const dateKey=`${currentReport.crew_id}:${localDate}`;
+        const storageKey=`astronaut-reminder-last:${currentReport.crew_id}`;
+        if(localStorage.getItem(storageKey)===dateKey)return;
+        new Notification("Health companion reminder",{
+          body:"Today's check-in or measurements are due. Open the health companion to continue.",
+          tag:`health-companion-${dateKey}`
+        });
+        localStorage.setItem(storageKey,dateKey);
+      }
+    }
+    const badges=document.getElementById("checkinBadges");
+    badges.replaceChildren(element("span","badge",`${companion.current_streak}-day streak`));
+    for(const badge of companion.badges)badges.append(element("span","badge wellbeing-badge",badge.label));
+    const checkins=document.getElementById("checkinHistory");
+    checkins.replaceChildren(element("p","muted",
+      companion.checkins.length
+        ?`Recent check-in: ${companion.checkins[0].date} · sleep ${Number(companion.checkins[0].sleep_hours).toFixed(1)} h · ${companion.checkins[0].exercise_minutes} exercise min · stress ${companion.checkins[0].stress_score}/10`
+        :"No check-ins recorded yet."));
+    renderLocalHandoffs(companionHandoffs(data));
+  }
+  if(data.weekly_summary)renderWeeklySummary(data.weekly_summary);
+  updateEmergencyMessage(data.risk_indicator.state);
+}
+function updateEmergencyMessage(state){
+  const urgent=document.getElementById("urgentSymptoms")?.checked;
+  document.getElementById("emergencyMessage").textContent=urgent
+    ?"Urgent symptoms were self-reported. Follow the mission emergency protocol and contact onboard crew / medical support immediately; this demo cannot transmit an alert."
+    :state==="above_safe"
+      ?"The illustrative demo has triggered an above-safe state. Review the report and follow your mission's established escalation procedure; this screen cannot determine whether an actual emergency exists."
+      :"No above-safe demo state is currently shown. A low score does not rule out an emergency: if urgent symptoms occur, follow the mission emergency protocol and contact onboard crew / medical support immediately.";
+}
+function companionHandoffs(data){
+  return Array.isArray(data.local_handoffs)?data.local_handoffs:[];
+}
+function renderWeeklySummary(summary){
+  document.getElementById("weeklyMeta").textContent=
+    `${summary.mission_phase} · ${summary.window} (D${summary.from_mission_day}–D${summary.to_mission_day}) · ${summary.readings_count} readings. Mission phase is illustrative and based on mission day.`;
+  const container=document.getElementById("weeklySummary");
+  container.replaceChildren();
+  const labels={
+    heart_rate_bpm:"Mean heart rate",
+    spo2_pct:"Mean SpO₂",
+    sleep_hours:"Mean sleep",
+    body_temp_c:"Mean temperature"
+  };
+  for(const [key,label] of Object.entries(labels)){
+    const value=summary.average_indicators[key];
+    if(value===undefined)continue;
+    const units={heart_rate_bpm:" bpm",spo2_pct:"%",sleep_hours:" h",body_temp_c:" °C"};
+    const card=element("div","companion-card");
+    card.append(element("span","muted",label),element("span","summary-value",`${value}${units[key]}`));
+    container.append(card);
+  }
+  const status=summary.rule_status_counts;
+  const statusCard=element("div","companion-card");
+  statusCard.append(
+    element("span","muted","Rule status count"),
+    element("span","summary-value",`${status.normal} normal · ${status.watch} watch · ${status.alert} alert`)
+  );
+  container.append(statusCard);
+  if(summary.latest_model_risk_probability!==null){
+    const risk=element("div","companion-card");
+    risk.append(
+      element("span","muted","Latest model estimate"),
+      element("span","summary-value",`${(summary.latest_model_risk_probability*100).toFixed(1)}%`)
+    );
+    container.append(risk);
+  }
+}
+function renderLocalHandoffs(handoffs){
+  const container=document.getElementById("localHandoffList");
+  container.replaceChildren();
+  if(!handoffs.length)return;
+  container.append(element("h3","","Local handoff queue — not transmitted"));
+  for(const handoff of handoffs){
+    const item=element("div","local-queue-item");
+    item.append(element("p","",`Report #${handoff.id} · ${handoff.created_at} · ${handoff.delivery_status} · not sent`));
+    if(handoff.delivery_status==="queued_local"){
+      const acknowledge=element("button","secondary","Simulate ground-station acknowledgement");
+      acknowledge.type="button";
+      acknowledge.addEventListener("click",()=>simulateHandoffAcknowledgement(handoff.id,acknowledge));
+      item.append(acknowledge);
+    }
+    if(handoff.delivery_status==="mock_acknowledged"){
+      item.append(element("p","muted","Mock receipt recorded. Nothing was transmitted; this is not a real station acknowledgement."));
+    }
+    container.append(item);
+  }
+}
+async function simulateHandoffAcknowledgement(handoffId,button){
+  button.disabled=true;
+  try{
+    const result=await request("/api/me/mock-handoff-ack",{
+      method:"POST",
+      body:JSON.stringify({handoff_id:handoffId})
+    });
+    currentReport.local_handoffs=currentReport.local_handoffs.map(item=>
+      item.id===handoffId?{...item,delivery_status:result.handoff.delivery_status}:item
+    );
+    renderLocalHandoffs(currentReport.local_handoffs);
+    document.getElementById("emergencyQueueStatus").textContent=result.note;
+  }catch(error){
+    button.disabled=false;
+    document.getElementById("emergencyQueueStatus").textContent=error.message;
+  }
+}
+async function loadDoctorBoard(){
+  const container=document.getElementById("doctorBoardContent");
+  container.replaceChildren(element("p","muted","Loading synthetic weekly summaries…"));
+  try{
+    const data=await request("/api/demo/doctor-dashboard");
+    const table=element("table","review-table");
+    const head=element("thead","");
+    const headRow=element("tr","");
+    for(const label of ["Crew member","Status","Latest HR","Latest SpO₂","7-day average sleep","7-day model estimate","Latest mission day"]){
+      headRow.append(element("th","",label));
+    }
+    head.append(headRow);
+    const body=element("tbody","");
+    for(const crew of data.crew){
+      const row=element("tr","");
+      const status=crew.risk_indicator.state;
+      const cells=[
+        `${crew.name} · ${crew.role}`,
+        crew.risk_indicator.label,
+        `${crew.latest.heart_rate_bpm} bpm`,
+        `${crew.latest.spo2_pct}%`,
+        `${crew.weekly_summary.average_indicators.sleep_hours??"—"} h`,
+        `${(crew.weekly_summary.latest_model_risk_probability*100).toFixed(1)}%`,
+        `D${crew.latest.mission_day}`
+      ];
+      cells.forEach(value=>row.append(element("td",status,value)));
+      body.append(row);
+    }
+    table.append(head,body);
+    container.replaceChildren(table);
+    container.append(element("p","muted",data.note));
+  }catch(error){
+    container.replaceChildren(element("p","error",error.message));
+  }
+}
+function renderWearable(data){
+  selectedCrewId=data.participant_id;
+  currentReport=data;
+  crewHome.classList.add("hidden");missionPanel.classList.add("hidden");
+  report.classList.add("hidden");wearableReport.classList.remove("hidden");
+  logout.classList.remove("hidden");
+  const baseline=data.stress_ratings.find(item=>item.stage==="Baseline");
+  const tmct=data.stress_ratings.find(item=>item.stage==="TMCT");
+  const peak=data.stress_ratings.reduce((highest,item)=>item.score>highest.score?item:highest);
+  document.getElementById("wearableParticipantName").textContent=
+    `${data.profile.mission_number} · ${data.profile.role}`;
+  document.getElementById("wearableMeta").textContent=
+    "Mission number · Study protocol V2 · Self-reported stress scores and Empatica E4 sessions";
+  const stats=document.getElementById("wearableStats");
+  const stressSignals=data.activities.stress.signals;
+  stats.replaceChildren(
+    stat("Stress-session heart rate",`${stressSignals.heart_rate_bpm.average.toFixed(1)} bpm`),
+    stat("Stress-session EDA",`${stressSignals.eda_us.average.toFixed(2)} µS`),
+    stat("Stress-session skin temperature",`${stressSignals.skin_temp_c.average.toFixed(1)} °C`),
+    stat("Self-reported stress · baseline → TMCT",`${baseline.score.toFixed(0)} → ${tmct.score.toFixed(0)} / 10`)
+  );
+  const difference=tmct.score-baseline.score;
+  document.getElementById("studyObservation").textContent=
+    `Self-reported stress changed ${difference>0?"+":""}${difference.toFixed(0)} points from baseline to TMCT; highest recorded score was ${peak.score.toFixed(0)}/10 at ${peak.stage}. These are subjective study responses, not a medical status or alert.`;
+  document.getElementById("wearableActivity").value="stress";
+  document.getElementById("wearableSignal").value="heart_rate_bpm";
+  document.getElementById("wearableActivity").onchange=drawWearableSignalChart;
+  document.getElementById("wearableSignal").onchange=drawWearableSignalChart;
+  document.getElementById("wearableSignalView").value="deviation";
+  document.getElementById("stressRatingView").value="actual";
+  updateAgentReport(data);
+  drawWearableCharts();
+}
+function drawWearableCharts(){
+  drawStressRatingChart();
+  drawWearableSignalChart();
+}
+function drawStressRatingChart(){
+  const svg=document.getElementById("stressRatingChart");
+  const ratings=currentReport&&currentReport.stress_ratings;
+  const legend=document.getElementById("stressRatingLegend");
+  if(!ratings||ratings.length<2){svg.replaceChildren();legend.replaceChildren();return}
+  const view=document.getElementById("stressRatingView").value;
+  const mean=ratings.reduce((sum,item)=>sum+item.score,0)/ratings.length;
+  const values=ratings.map(item=>view==="deviation"?item.score-mean:item.score);
+  const extent=Math.max(Math.abs(Math.min(...values)),Math.abs(Math.max(...values)),1e-9);
+  const min=view==="deviation"?-extent*1.08:0;
+  const max=view==="deviation"?extent*1.08:10;
+  const width=1000,height=320,padding={left:64,right:16,top:34,bottom:48};
+  const x=index=>padding.left+index/(ratings.length-1)*(width-padding.left-padding.right);
+  const y=value=>height-padding.bottom-(value-min)/(max-min)*(height-padding.top-padding.bottom);
+  let chart="";
+  for(let tick=0;tick<=4;tick++){
+    const value=min+(max-min)*tick/4;
+    const zero=view==="deviation"&&Math.abs(value)<=(max-min)*1e-9;
+    const label=view==="deviation"?(Math.abs(value)<1e-9?"0":`${value>0?"+":""}${value.toFixed(1)}`):value.toFixed(0);
+    chart+=`<line x1="${padding.left}" y1="${y(value)}" x2="${width-padding.right}" y2="${y(value)}" stroke="${zero?"#e8ecf6":"#26304a"}" stroke-width="${zero?1.8:1}"${zero?' opacity="0.95"':""}/>`;
+    chart+=`<text x="${padding.left-8}" y="${y(value)+4}" fill="${zero?"#e8ecf6":"#93a0bd"}" font-size="11" text-anchor="end">${label}</text>`;
+    if(zero)chart+=`<text x="${width-padding.right-4}" y="${y(value)-6}" fill="#93a0bd" font-size="11" text-anchor="end">stage mean (0)</text>`;
+  }
+  const path=values.map((value,index)=>`${index?"L":"M"}${x(index).toFixed(1)} ${y(value).toFixed(1)}`).join(" ");
+  if(view==="deviation"){
+    const zero=y(0).toFixed(1);
+    chart+=`<path d="${path} L${x(ratings.length-1).toFixed(1)} ${zero} L${x(0).toFixed(1)} ${zero} Z" fill="#ffc65c" opacity=".08"/>`;
+  }
+  chart+=`<path d="${path}" fill="none" stroke="#ffc65c" stroke-width="2" stroke-linejoin="round"/>`;
+  ratings.forEach((item,index)=>{
+    chart+=`<circle cx="${x(index).toFixed(1)}" cy="${y(values[index]).toFixed(1)}" r="3" fill="#ffc65c"/>`;
+    chart+=`<text x="${x(index).toFixed(1)}" y="${height-12}" fill="#93a0bd" font-size="10" text-anchor="middle">${item.stage}</text>`;
+  });
+  svg.innerHTML=chart;
+  document.getElementById("stressRatingTitle").textContent=view==="deviation"
+    ?"Self-reported stress — rise / drop from participant mean (0 centred)"
+    :"Self-reported stress by study stage";
+  legend.innerHTML=view==="deviation"
+    ?'<span><i style="background:#ffc65c"></i>Stage score deviation (0–10 scale; not a clinical metric)</span><span><i style="background:#e8ecf6"></i>Zero = this participant’s mean score</span>'
+    :'<span><i style="background:#ffc65c"></i>Self-reported study score (0–10)</span>';
+  document.getElementById("stressRatingCaption").textContent=
+    view==="deviation"
+      ?`Each point is the participant's reported score minus their ${mean.toFixed(1)}/10 average across the seven study stages.`
+      :"Subjective stress scores reported by this participant at each study stage (recorded scale 0–10); not a clinical measure.";
+}
+function drawWearableSignalChart(){
+  const svg=document.getElementById("wearableSignalChart");
+  const legend=document.getElementById("wearableSignalLegend");
+  if(!currentReport||!currentReport.participant_id){svg.replaceChildren();return}
+  const activityKey=document.getElementById("wearableActivity").value;
+  const signalKey=document.getElementById("wearableSignal").value;
+  const view=document.getElementById("wearableSignalView").value;
+  const activity=currentReport.activities[activityKey];
+  const signal=activity&&activity.signals[signalKey];
+  if(!signal||signal.points.length<2){
+    svg.replaceChildren();legend.replaceChildren();
+    document.getElementById("wearableSignalCaption").textContent="No chartable samples are available for this signal and session.";
+    return;
+  }
+  const points=signal.points.map(([minute,value])=>({minute:Number(minute),value:Number(value)}))
+    .filter(point=>Number.isFinite(point.minute)&&Number.isFinite(point.value));
+  if(points.length<2){svg.replaceChildren();return}
+  const baseline=points.reduce((sum,point)=>sum+point.value,0)/points.length;
+  const values=points.map(point=>view==="deviation"?point.value-baseline:point.value);
+  let minY,maxY;
+  if(view==="deviation"){
+    const extent=Math.max(Math.abs(Math.min(...values)),Math.abs(Math.max(...values)),1e-9)*1.08;
+    minY=-extent;maxY=extent;
+  }else{
+    minY=Math.min(...values);maxY=Math.max(...values);
+    if(minY===maxY){minY-=1;maxY+=1}
+    const pad=(maxY-minY)*.08;minY-=pad;maxY+=pad;
+  }
+  const minX=points[0].minute,maxX=points[points.length-1].minute;
+  const width=1000,height=320,padding={left:64,right:16,top:34,bottom:34};
+  const x=minute=>padding.left+(minute-minX)/Math.max(maxX-minX,1e-9)*(width-padding.left-padding.right);
+  const y=value=>height-padding.bottom-(value-minY)/(maxY-minY)*(height-padding.top-padding.bottom);
+  let chart="";
+  for(let tick=0;tick<=4;tick++){
+    const value=minY+(maxY-minY)*tick/4;
+    const zero=view==="deviation"&&Math.abs(value)<=(maxY-minY)*1e-9;
+    const label=view==="deviation"?(Math.abs(value)<1e-9?"0":`${value>0?"+":""}${value.toFixed(1)}`):value.toFixed(1);
+    chart+=`<line x1="${padding.left}" y1="${y(value)}" x2="${width-padding.right}" y2="${y(value)}" stroke="${zero?"#e8ecf6":"#26304a"}" stroke-width="${zero?1.8:1}"${zero?' opacity="0.95"':""}/>`;
+    chart+=`<text x="${padding.left-8}" y="${y(value)+4}" fill="${zero?"#e8ecf6":"#93a0bd"}" font-size="11" text-anchor="end">${label}</text>`;
+    if(zero)chart+=`<text x="${width-padding.right-4}" y="${y(value)-6}" fill="#93a0bd" font-size="11" text-anchor="end">session mean (0)</text>`;
+  }
+  const path=values.map((value,index)=>`${index?"L":"M"}${x(points[index].minute).toFixed(1)} ${y(value).toFixed(1)}`).join(" ");
+  if(view==="deviation"){
+    const zero=y(0).toFixed(1);
+    chart+=`<path d="${path} L${x(points[points.length-1].minute).toFixed(1)} ${zero} L${x(points[0].minute).toFixed(1)} ${zero} Z" fill="#5ea0ff" opacity=".08"/>`;
+  }
+  chart+=`<path d="${path}" fill="none" stroke="#5ea0ff" stroke-width="2" stroke-linejoin="round"/>`;
+  for(let tick=0;tick<=5;tick++){
+    const minute=minX+(maxX-minX)*tick/5;
+    chart+=`<text x="${x(minute).toFixed(1)}" y="${height-12}" fill="#93a0bd" font-size="11" text-anchor="middle">${minute.toFixed(0)} min</text>`;
+  }
+  svg.innerHTML=chart;
+  document.getElementById("wearableSignalTitle").textContent=
+    view==="deviation"
+      ?`${signal.label} — rise / drop from session mean (0 centred)`
+      :`${signal.label} over ${activity.label.toLowerCase()}`;
+  legend.innerHTML=view==="deviation"
+    ?`<span><i style="background:#5ea0ff"></i>${signal.label} deviation (${signal.unit})</span><span><i style="background:#e8ecf6"></i>Zero = displayed-session mean (${baseline.toFixed(2)} ${signal.unit})</span>`
+    :`<span><i style="background:#5ea0ff"></i>${signal.label} (${signal.unit}) · actual values</span>`;
+  document.getElementById("wearableSignalCaption").textContent=
+    `${signal.average.toFixed(2)} ${signal.unit} average (${signal.minimum.toFixed(2)}–${signal.maximum.toFixed(2)} ${signal.unit}). Chart shows ${points.length} time-bin averages across ${Math.round(signal.duration_seconds/60)} minutes.`;
+}
+function updateAgentReport(data){
+  if(data.participant_id){
+    const baseline=data.stress_ratings.find(item=>item.stage==="Baseline");
+    const tmct=data.stress_ratings.find(item=>item.stage==="TMCT");
+    const summary=`Self-reported stress: ${baseline.score.toFixed(0)}/10 at baseline and ${tmct.score.toFixed(0)}/10 during TMCT.`;
+    document.getElementById("agentStatusTitle").textContent=
+      `${data.profile.mission_number} · Study self-report`;
+    document.getElementById("agentStatusText").textContent=
+      `${summary} These are archived study observations, not live readings or a clinical risk score.`;
+    const advice=document.getElementById("agentAdvice");
+    advice.replaceChildren();
+    advice.append(element("li","","The selected session graphs show measured heart rate, electrodermal activity, and skin temperature."));
+    advice.append(element("li","","This research dataset cannot determine a diagnosis or provide personalized medical advice."));
+    document.getElementById("agentPreview").textContent=
+      `${data.profile.mission_number} · Baseline ${baseline.score.toFixed(0)}/10 → TMCT ${tmct.score.toFixed(0)}/10 self-reported stress. Research data only; not a diagnosis.`;
+    return;
+  }
+  const indicator=data.risk_indicator;
+  const percent=(data.prediction.risk_probability*100).toFixed(1);
+  const guidance=indicator.state==="above_safe"
+    ?"Above the configured safe line. Contact the flight surgeon promptly using mission protocol."
+    :indicator.state==="rising"
+      ?"Rising toward a review line. Recheck as directed and discuss the trend with the flight surgeon."
+      :"Below the configured safe line in this demo. Continue monitoring; this is not medical clearance.";
+  document.getElementById("agentStatusTitle").textContent=
+    `${data.profile.name} · ${indicator.label} · ${percent}% model estimate`;
+  document.getElementById("agentStatusText").textContent=guidance;
+  const advice=document.getElementById("agentAdvice");
+  advice.replaceChildren();
+  for(const item of data.advice)advice.append(element("li","",item));
+  document.getElementById("agentPreview").textContent=
+    `${indicator.label} · ${percent}% illustrative model estimate. ${guidance}`;
+}
+function clearAgentReport(){
+  currentReport=null;
+  document.getElementById("agentStatusTitle").textContent="Report-based guidance";
+  document.getElementById("agentStatusText").textContent=wearableMode
+    ?"Select a study participant to see their measured session summaries and self-reported stress scores."
+    :"Select an astronaut to see guidance from their report.";
+  document.getElementById("agentAdvice").replaceChildren();
+  document.getElementById("agentPreview").textContent=
+    wearableMode
+      ?"Choose a participant to view research-session data, or open chat for current news."
+      :"Choose an astronaut for report-based guidance, or open chat for a stress reset and live headlines.";
+}
+function addAgentMessage(text,role="agent"){
+  const message=element("p",`agent-message ${role}`,text);
+  agentMessages.append(message);
+  agentMessages.scrollTop=agentMessages.scrollHeight;
+}
+async function showAgentNews(topic,query=""){
+  const topics=topic==="latest"?["sports","entertainment"]:[topic];
+  const ignored=new Set(["news","latest","recent","current","headline","headlines","today","sports","sport","entertainment","please","what","whats","the","about","some","give","me","tell"]);
+  const terms=query.toLowerCase().match(/[a-z0-9]+/g)?.filter(term=>term.length>2&&!ignored.has(term))||[];
+  for(const category of topics){
+    const label=category==="sports"?"sports":"entertainment";
+    try{
+      const data=await request(`/api/agent/news?topic=${encodeURIComponent(category)}`);
+      addAgentMessage(`Headlines published in the last ${data.max_age_hours} hours from ${data.source} (retrieved ${new Date(data.fetched_at).toLocaleString()}):`);
+      if(!data.articles.length){
+        addAgentMessage(`No verified recent ${label} headlines are available in the feed right now.`);
+        continue;
+      }
+      let articles=data.articles;
+      if(terms.length){
+        const matching=articles.filter(article=>{
+          const text=`${article.title} ${article.summary}`.toLowerCase();
+          return terms.some(term=>text.includes(term));
+        });
+        if(matching.length)articles=matching;
+        else addAgentMessage(`No recent ${label} headline matched “${terms.join(" ")}”; showing the latest headlines instead.`);
+      }
+      const list=element("ul","agent-news-list");
+      for(const article of articles){
+        const item=element("li","");
+        const link=element("a","",article.title);
+        link.href=article.url;link.target="_blank";link.rel="noopener noreferrer";
+        item.append(link);
+        if(article.summary)item.append(element("span","agent-news-meta",article.summary));
+        const metadata=element("span","agent-news-meta",`${data.source} · ${new Date(article.published).toLocaleString()}`);
+        item.append(metadata);list.append(item);
+      }
+      agentMessages.append(list);
+      agentMessages.scrollTop=agentMessages.scrollHeight;
+    }catch(error){
+      addAgentMessage(`${error.message} Your chat text and health data were not sent to news sources.`);
+    }
+  }
+}
+async function respondToAgent(message){
+  const text=message.trim();
+  if(!text)return;
+  addAgentMessage(text,"user");
+  const lower=text.toLowerCase();
+  const sports=/\b(sport|sports|game|match|team|scoreboard|football|soccer|cricket|tennis|rugby|basketball)\b/.test(lower);
+  const entertainment=/\b(entertainment|music|movie|film|television|tv|show|celebrity|actor|actress)\b/.test(lower);
+  const currentNews=/\b(news|latest|recent|current|headline|headlines|update|updates)\b/.test(lower);
+  if(sports||entertainment||currentNews){
+    await showAgentNews(sports&&entertainment?"latest":sports?"sports":entertainment?"entertainment":"latest",text);
+    return;
+  }
+  if(/\b(stress|stressed|anxious|anxiety|nervous|calm|relax|overwhelmed)\b/.test(lower)){
+    addAgentMessage("If it feels comfortable, try five slow breaths: breathe in gently for about 4 seconds, then out for about 6. Stop if you feel uncomfortable. You could also connect with a crewmate or use the mission’s confidential support channel.");
+    return;
+  }
+  if(/\b(health|risk|report|condition|advice|medical|symptom)\b/.test(lower)){
+    if(currentReport&&currentReport.participant_id){
+      addAgentMessage("These are archived research measurements and subjective study stress ratings, not a medical assessment. They cannot diagnose a condition or determine your current health. Please consult a qualified health professional for personal health concerns.");
+      return;
+    }
+    addAgentMessage(currentReport
+      ?`${document.getElementById("agentStatusTitle").textContent}. ${document.getElementById("agentStatusText").textContent} The report’s predefined follow-up is shown above; for medical concerns, contact the flight surgeon.`
+      :"Choose an astronaut and open their report to see its predefined guidance. For symptoms or urgent medical concerns, contact the flight surgeon.");
+    return;
+  }
+  if(/\b(hello|hi|hey|good morning|good evening)\b/.test(lower)){
+    addAgentMessage("Hello! What would you like to talk about? I can offer a short stress reset or fetch current sports and entertainment headlines.");
+    return;
+  }
+  addAgentMessage("I’m a guided, rule-based wellbeing helper rather than a generative therapist. I can chat about taking a short reset, share live sports or entertainment headlines, or summarize the selected report’s predefined guidance.");
+}
+function drawTrendCharts(){
+  drawIndicatorChart();
+  drawRiskChart();
+}
+function chartAxes(points,minValue,maxValue,width,height,padding,format,centered){
+  const sx=day=>padding.left+(day-points[0].day)/Math.max(1,points[points.length-1].day-points[0].day)*(width-padding.left-padding.right);
+  const sy=value=>height-padding.bottom-(value-minValue)/(maxValue-minValue)*(height-padding.top-padding.bottom);
+  let svg="";
+  for(let i=0;i<=4;i++){
+    const value=minValue+(maxValue-minValue)*i/4;
+    const y=sy(value);
+    const zero=centered&&Math.abs(value)<=(maxValue-minValue)*1e-9;
+    svg+=`<line x1="${padding.left}" y1="${y}" x2="${width-padding.right}" y2="${y}" stroke="${zero?"#e8ecf6":"#40506f"}" stroke-width="${zero?1.8:1}" opacity=".8"/>`;
+    svg+=`<text x="${padding.left-8}" y="${y+4}" fill="${zero?"#e8ecf6":"#c0c9d9"}" font-size="12" text-anchor="end">${format(value)}</text>`;
+  }
+  for(let i=0;i<=5;i++){
+    const day=points[0].day+(points[points.length-1].day-points[0].day)*i/5;
+    svg+=`<text x="${sx(day)}" y="${height-9}" fill="#c0c9d9" font-size="12" text-anchor="middle">D${Math.round(day)}</text>`;
+  }
+  return {svg,sx,sy};
+}
+function drawIndicatorChart(){
+  const svg=document.getElementById("indicatorChart");
+  if(reportHistory.length<2){svg.replaceChildren();return}
+  const key=document.getElementById("trendMetric").value;
+  const metric=trendMetricInfo[key];
+  const view=document.getElementById("trendView").value;
+  const points=reportHistory.map(row=>({day:Number(row.mission_day),value:Number(row[key])}))
+    .filter(point=>Number.isFinite(point.day)&&Number.isFinite(point.value));
+  if(points.length<2){svg.replaceChildren();return}
+  const missionDay=Number(currentReport?.latest?.mission_day);
+  const phase=currentMissionPhase(missionDay);
+  const phasePoints=points.filter(point=>currentMissionPhase(point.day)===phase);
+  const referenceWindow=(phasePoints.length?phasePoints:points).slice(0,Math.min(14,phasePoints.length||points.length));
+  const referenceMean=referenceWindow.reduce((sum,point)=>sum+point.value,0)/referenceWindow.length;
+  const preflight=phase==="Early mission"?dataPreflightValue(key):null;
+  const mean=preflight===null?referenceMean:preflight;
+  const variance=referenceWindow.reduce((sum,point)=>sum+(point.value-referenceMean)**2,0)/referenceWindow.length;
+  const band=Math.sqrt(variance);
+  const values=points.map(point=>view==="actual"?point.value:point.value-mean);
+  let min=Math.min(...values),max=Math.max(...values);
+  if(view==="deviation"){const extent=Math.max(Math.abs(min),Math.abs(max),1e-9)*1.08;min=-extent;max=extent}
+  else if(min===max){min-=1;max+=1}
+  else{const pad=(max-min)*.08;min-=pad;max+=pad}
+  if(view==="actual"){
+    min=Math.min(min,mean-band);
+    max=Math.max(max,mean+band);
+    if(min===max){min-=1;max+=1}
+  }
+  const width=1000,height=320,padding={left:72,right:18,top:18,bottom:34};
+  const axes=chartAxes(points,min,max,width,height,padding,value=>view==="actual"?value.toFixed(1):`${value>0?"+":""}${value.toFixed(1)}`,view==="deviation");
+  const path=points.map((point,index)=>`${index?"L":"M"}${axes.sx(point.day).toFixed(1)} ${axes.sy(values[index]).toFixed(1)}`).join(" ");
+  const bandCenter=view==="actual"?mean:0;
+  const bandTop=axes.sy(bandCenter+band),bandBottom=axes.sy(bandCenter-band);
+  const bandArea=`<rect x="${padding.left}" y="${Math.min(bandTop,bandBottom).toFixed(1)}" width="${width-padding.left-padding.right}" height="${Math.max(1,Math.abs(bandBottom-bandTop)).toFixed(1)}" fill="#5ea0ff" opacity=".12"/>`;
+  const baselineLine=axes.sy(view==="actual"?mean:0).toFixed(1);
+  const baseline=`<line x1="${padding.left}" y1="${baselineLine}" x2="${width-padding.right}" y2="${baselineLine}" stroke="#b9d5ff" stroke-dasharray="6 5" opacity=".85"/>`;
+  svg.innerHTML=`${axes.svg}${bandArea}${baseline}<path d="${path}" fill="none" stroke="#7fc0ff" stroke-width="2.5" stroke-linejoin="round"/>`;
+  document.getElementById("indicatorChartTitle").textContent=view==="deviation"
+    ?`${metric.label} — rise / drop from baseline (0 centred)`
+    :`${metric.label} actual values`;
+  document.getElementById("indicatorChartCaption").textContent=view==="deviation"
+    ?`Values are ${metric.unit} above/below the ${preflight===null?phase.toLowerCase()+" phase":"preflight"} reference (${mean.toFixed(1)} ${metric.unit}); shaded band is ±1 SD of the first ${referenceWindow.length} readings in this phase, illustrative and not a medical threshold.`
+    :`Dashed line: ${preflight===null?phase.toLowerCase()+" phase":"preflight"} reference (${mean.toFixed(1)} ${metric.unit}); shaded band: ±1 SD of the first ${referenceWindow.length} phase readings. This comparison is illustrative, not a medical safe range.`;
+}
+function currentMissionPhase(day){
+  if(day<=30)return "Early mission";
+  if(day<=150)return "Long-duration mission";
+  return "Return preparation";
+}
+function dataPreflightValue(key){
+  const raw=currentReport?.risk_indicator?.preflight_measurements?.[key];
+  const value=Number(raw);
+  return raw!==undefined&&raw!==null&&Number.isFinite(value)?value:null;
+}
+function drawRiskChart(){
+  const svg=document.getElementById("riskChart");
+  const points=reportHistory.map(row=>({day:Number(row.mission_day),risk:Number(row.risk_probability)}))
+    .filter(point=>Number.isFinite(point.day)&&Number.isFinite(point.risk));
+  if(points.length<2){svg.replaceChildren();return}
+  const mean=points.reduce((sum,point)=>sum+point.risk,0)/points.length;
+  const deviations=points.map(point=>(point.risk-mean)*100);
+  const extent=Math.max(...deviations.map(Math.abs),1e-9)*1.08;
+  const width=1000,height=300,padding={left:72,right:18,top:18,bottom:34};
+  const axes=chartAxes(points,-extent,extent,width,height,padding,value=>`${value>0?"+":""}${value.toFixed(1)}`,true);
+  const path=points.map((point,index)=>`${index?"L":"M"}${axes.sx(point.day).toFixed(1)} ${axes.sy(deviations[index]).toFixed(1)}`).join(" ");
+  const baseline=axes.sy(0).toFixed(1);
+  const area=`<path d="${path} L${axes.sx(points[points.length-1].day).toFixed(1)} ${baseline} L${axes.sx(points[0].day).toFixed(1)} ${baseline} Z" fill="#ffc65c" opacity=".1"/>`;
+  svg.innerHTML=`${axes.svg}${area}<path d="${path}" fill="none" stroke="#ffc65c" stroke-width="2.5" stroke-linejoin="round"/>`;
+  document.getElementById("riskChartCaption").textContent=
+    `Centered at this astronaut's ${(mean*100).toFixed(1)}% average model risk; latest estimate ${(points[points.length-1].risk*100).toFixed(1)}%. Deviations are percentage points, not absolute probabilities.`;
+}
+function showCrewHome(){
+  selectedCrewId=null;
+  clearAgentReport();
+  document.getElementById("missionNumber").value="";
+  document.getElementById("loginError").textContent="";
+  report.classList.add("hidden");wearableReport.classList.add("hidden");missionPanel.classList.add("hidden");crewHome.classList.remove("hidden");logout.classList.add("hidden");
+}
+function showMissionEntry(astronaut){
+  selectedCrewId=astronaut.crew_id;
+  document.getElementById("selectedAstronaut").textContent=`${astronaut.name} · ${astronaut.role}`;
+  document.getElementById("missionNumber").value="";
+  document.getElementById("loginError").textContent="";
+  crewHome.classList.add("hidden");missionPanel.classList.remove("hidden");
+  document.getElementById("missionNumber").focus();
+}
+async function loadAstronauts(){
+  try{
+    const data=await request("/api/astronauts");
+    publicReports=data.reports_public===true;
+    wearableMode=data.participant_demo===true;
+    if(wearableMode){
+      healthIndicators=data.health_indicators;
+      const signalSelect=document.getElementById("wearableSignal");
+      signalSelect.replaceChildren(...healthIndicators.map(indicator=>{
+        const option=element("option","",indicator.label);
+        option.value=indicator.key;
+        return option;
+      }));
+      signalSelect.value="heart_rate_bpm";
+    }
+    document.title=wearableMode?"AI Health Companion for Astronauts":"Astronaut Health Report";
+    document.getElementById("siteTitle").textContent=wearableMode
+      ?"AI Health Companion for Astronauts"
+      :"🩺 Astronaut Health Report";
+    document.getElementById("homeSectionTitle").textContent=wearableMode
+      ?"Selected research participants"
+      :"Select an astronaut";
+    document.getElementById("accessMode").textContent=wearableMode
+      ?"Wearable research demo · mission numbers MS1001–MS1004"
+      :publicReports
+        ?"Synthetic-data public demo"
+        :"Private crew-member view";
+    const doctorBoardToggle=document.getElementById("doctorBoardToggle");
+    doctorBoardToggle.classList.toggle("hidden",!publicReports||wearableMode);
+    document.getElementById("doctorBoard").classList.add("hidden");
+    logout.textContent=wearableMode
+      ?"Back to participants"
+      :publicReports?"Back to astronauts":"Switch astronaut / sign out";
+    document.getElementById("crewInstructions").textContent=wearableMode
+      ?"Open a mission-number card to view the selected crew member's study sessions and health graphs."
+      :publicReports
+        ?"Select an astronaut card to view that crew member's health report."
+        :"Select your card, then enter your private mission number.";
+    clearAgentReport();
+    const cards=document.getElementById("crewCards");
+    cards.replaceChildren();
+    for(const astronaut of data.astronauts){
+      const participantId=wearableMode?astronaut.participant_id:null;
+      const crewId=wearableMode?null:astronaut.crew_id;
+      const card=element("button","astronaut-card");
+      card.type="button";
+      card.append(element("span","crew-id",wearableMode?"Mission number":crewId));
+      card.append(element("strong","crew-name",wearableMode?astronaut.mission_number:astronaut.name));
+      card.append(element("span","crew-role",astronaut.role));
+      if(wearableMode){
+        const vitals=element("span","card-vitals");
+        for(const [label,value,unit] of [
+          ["Mean stress HR",astronaut.heart_rate_bpm,"bpm"],
+          ["Mean stress EDA",astronaut.eda_us,"µS"],
+          ["Stress baseline → TMCT",`${astronaut.stress_rating_baseline.toFixed(0)} → ${astronaut.stress_rating_tmct.toFixed(0)}`,"/10"]
+        ]){
+          const vital=element("span","card-vital");
+          vital.append(element("span","card-vital-label",label));
+          vital.append(element("span","card-vital-value",`${typeof value==="number"?value.toFixed(1):value} ${unit}`));
+          vitals.append(vital);
+        }
+        card.append(vitals);
+      }else if(astronaut.latest){
+        const vitals=element("span","card-vitals");
+        for(const [label,value,unit] of [
+          ["Heart rate",astronaut.latest.heart_rate_bpm,"bpm"],
+          ["Temperature",astronaut.latest.body_temp_c,"°C"],
+          ["SpO₂",astronaut.latest.spo2_pct,"%"]
+        ]){
+          const vital=element("span","card-vital");
+          vital.append(element("span","card-vital-label",label));
+          vital.append(element("span","card-vital-value",Number(value).toFixed(1)+" "+unit));
+          vitals.append(vital);
+        }
+        card.append(vitals);
+      }
+      card.addEventListener("click",async()=>{
+        if(!publicReports){showMissionEntry(astronaut);return}
+        try{
+          if(wearableMode){
+            renderWearable(await request(`/api/wearable/report/${encodeURIComponent(participantId)}`));
+          }else{
+            render(await request(`/api/demo/report/${encodeURIComponent(crewId)}`));
+          }
+        }catch(error){document.getElementById("crewLoadError").textContent=error.message}
+      });
+      cards.append(card);
+    }
+  }catch(error){document.getElementById("crewLoadError").textContent=error.message}
+}
+function downloadHandoff(data){
+  const handoff={
+    type:"flight_surgeon_review_request",
+    generated_at:new Date().toISOString(),
+    crew_id:data.crew_id,
+    profile:data.profile,
+    risk_indicator:data.risk_indicator,
+    delivery:{
+      status:"local_export_only",
+      transmitted:false,
+      note:"No Earth-station receiver is configured; this file is downloaded locally and is not sent automatically."
+    },
+    current_rule_status:data.status,
+    next_day_model_estimate:data.prediction,
+    latest_reading:data.latest,
+    recent_trend:Array.isArray(data.history)?data.history.slice(-7):[],
+    weekly_summary:data.weekly_summary||null,
+    suggested_follow_up:data.advice,
+    disclaimer:"Synthetic-data demonstration only; not clinically validated or diagnostic. Use only an approved mission medical channel for any later transmission."
+  };
+  const blob=new Blob([JSON.stringify(handoff,null,2)],{type:"application/json"});
+  const link=document.createElement("a");link.href=URL.createObjectURL(blob);
+  link.download=`flight-surgeon-review-${data.crew_id}.json`;link.click();
+  setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+}
+async function loadReport(){
+  try{render(await request("/api/me/report"))}
+  catch(error){if(error.message==="Authentication required.")showCrewHome();else pageError.textContent=error.message}
+}
+async function submitMissionNumber(code){
+  document.getElementById("loginError").textContent="";
+  const button=document.getElementById("loginButton");button.disabled=true;
+  try{
+  if(!selectedCrewId)throw new Error("Select your astronaut card first.");
+  await request("/api/mission-number",{method:"POST",body:JSON.stringify({mission_number:code.trim(),crew_id:selectedCrewId})});
+  document.getElementById("missionNumber").value="";
+  await loadReport();
+  }catch(error){document.getElementById("loginError").textContent=error.message}
+  finally{button.disabled=false}
+}
+document.getElementById("missionNumberForm").addEventListener("submit",event=>{
+  event.preventDefault();submitMissionNumber(document.getElementById("missionNumber").value);
+});
+document.getElementById("backToCrew").addEventListener("click",showCrewHome);
+document.getElementById("doctorBoardToggle").addEventListener("click",async event=>{
+  const board=document.getElementById("doctorBoard");
+  const opening=board.classList.contains("hidden");
+  board.classList.toggle("hidden",!opening);
+  event.currentTarget.textContent=opening?"Close synthetic demo review board":"Open synthetic demo review board";
+  if(opening)await loadDoctorBoard();
+});
+document.getElementById("trendMetric").addEventListener("change",drawIndicatorChart);
+document.getElementById("trendView").addEventListener("change",drawIndicatorChart);
+document.getElementById("wellbeingForm").addEventListener("submit",async event=>{
+  event.preventDefault();
+  const form=event.currentTarget;
+  const button=form.querySelector("button[type=submit]");
+  const status=document.getElementById("checkinStatus");
+  status.textContent="";
+  button.disabled=true;
+  try{
+    const formData=new FormData(form);
+    const result=await request("/api/me/checkin",{
+      method:"POST",
+      body:JSON.stringify({
+        sleep_hours:Number(formData.get("sleep_hours")),
+        exercise_minutes:Number(formData.get("exercise_minutes")),
+        exercise_type:formData.get("exercise_type"),
+        stress_score:Number(formData.get("stress_score"))
+      })
+    });
+    document.getElementById("enableReminder").addEventListener("click",enableDailyReminder);
+    document.getElementById("reminderTime").addEventListener("change",()=>{
+      if(currentReport?.crew_id){
+        localStorage.setItem(
+          `astronaut-reminder-time:${currentReport.crew_id}`,
+          document.getElementById("reminderTime").value
+        );
+      }
+      updateReminderStatus();
+    });
+    document.getElementById("measurementForm").addEventListener("submit",async event=>{
+      event.preventDefault();
+      const form=event.currentTarget;
+      const button=form.querySelector("button[type=submit]");
+      const status=document.getElementById("measurementStatus");
+      status.textContent="";
+      button.disabled=true;
+      try{
+        const measurements={};
+        for(const input of form.elements){
+          if(input.name)measurements[input.name]=Number(input.value);
+        }
+        const result=await request("/api/me/readings",{
+          method:"POST",
+          body:JSON.stringify(measurements)
+        });
+        status.textContent=`Demo measurement saved for mission day ${result.reading.mission_day} (${result.reading.date_utc}). Updating report and trend graphs…`;
+        await loadReport();
+      }catch(error){status.textContent=error.message}
+      finally{button.disabled=false}
+    });
+    currentReport.companion=result.companion;
+    renderCompanion(currentReport);
+    status.textContent=`Check-in saved for ${result.checkin.date} UTC. It does not change the risk score.`;
+    form.reset();
+  }catch(error){status.textContent=error.message}
+  finally{button.disabled=false}
+});
+document.getElementById("environmentMode").addEventListener("change",event=>{
+  const descriptions={
+    spacecraft:"Spacecraft view selected. This is a display mode only; it does not change thresholds or claim spacecraft sensor data.",
+    iss:"ISS view selected. This is a display mode only; it does not connect to ISS systems or change thresholds.",
+    lunar:"Lunar base view selected. This is a display mode only; it does not connect to lunar systems or change thresholds."
+  };
+  document.getElementById("environmentNote").textContent=descriptions[event.target.value];
+});
+function selectBodyMetric(key){
+  const metric=trendMetricInfo[key];
+  if(!metric)return;
+  document.getElementById("trendMetric").value=key;
+  document.getElementById("trendView").value="actual";
+  document.getElementById("bodyMapSelection").textContent=`Showing ${metric.label.toLowerCase()} history (${metric.unit}) in the trend chart.`;
+  drawIndicatorChart();
+  document.getElementById("indicatorChartTitle").scrollIntoView({behavior:"smooth",block:"center"});
+}
+document.querySelectorAll("[data-body-metric]").forEach(node=>{
+  node.addEventListener("click",()=>selectBodyMetric(node.dataset.bodyMetric));
+  node.addEventListener("keydown",event=>{
+    if((event.key==="Enter"||event.key===" ")&&node.getAttribute("role")==="button"){
+      event.preventDefault();
+      selectBodyMetric(node.dataset.bodyMetric);
+    }
+  });
+});
+document.getElementById("queueEmergencyReport").addEventListener("click",async event=>{
+  const button=event.currentTarget;
+  const status=document.getElementById("emergencyQueueStatus");
+  status.textContent="";
+  button.disabled=true;
+  try{
+    const result=await request("/api/me/emergency-report",{
+      method:"POST",
+      body:JSON.stringify({
+        urgent_symptoms_confirmed:document.getElementById("urgentSymptoms").checked
+      })
+    });
+    const item={id:result.handoff.id,created_at:result.handoff.created_at,delivery_status:result.handoff.delivery_status};
+    currentReport.local_handoffs=[item,...(currentReport.local_handoffs||[])];
+    renderLocalHandoffs(currentReport.local_handoffs);
+    status.textContent=`Review report #${item.id} queued locally. It was not transmitted.`;
+  }catch(error){status.textContent=error.message}
+  finally{button.disabled=false}
+});
+document.getElementById("urgentSymptoms").addEventListener("change",()=>{
+  if(currentReport)updateEmergencyMessage(currentReport.risk_indicator.state);
+});
+document.getElementById("wearableSignal").addEventListener("change",drawWearableSignalChart);
+document.getElementById("wearableSignalView").addEventListener("change",drawWearableSignalChart);
+document.getElementById("stressRatingView").addEventListener("change",drawStressRatingChart);
+document.getElementById("agentToggle").addEventListener("click",()=>{
+  const opening=agentPanel.classList.contains("hidden");
+  agentPanel.classList.toggle("hidden",!opening);
+  document.getElementById("agentToggle").setAttribute("aria-expanded",String(opening));
+  if(opening)document.getElementById("agentInput").focus();
+});
+document.getElementById("agentClose").addEventListener("click",()=>{
+  agentPanel.classList.add("hidden");
+  document.getElementById("agentToggle").setAttribute("aria-expanded","false");
+  document.getElementById("agentToggle").focus();
+});
+document.getElementById("agentForm").addEventListener("submit",event=>{
+  event.preventDefault();
+  const input=document.getElementById("agentInput");
+  const message=input.value;input.value="";
+  respondToAgent(message);
+});
+document.querySelectorAll("[data-agent-action]").forEach(button=>{
+  button.addEventListener("click",()=>{
+    const action=button.dataset.agentAction;
+    if(action==="sports"||action==="entertainment")showAgentNews(action);
+    else respondToAgent("I feel stressed and would like a reset.");
+  });
+});
+logout.addEventListener("click",async()=>{
+  try{
+    await request("/api/logout",{method:"POST",body:"{}"});
+    pageError.textContent="";showCrewHome();
+  }catch(error){pageError.textContent=error.message}
+});
+loadAstronauts().then(()=>{if(!publicReports)loadReport()});
+</script>
+</body>
+</html>

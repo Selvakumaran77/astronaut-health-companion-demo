@@ -1,0 +1,76 @@
+{
+  "CDR-1": {
+    "name": "Leo 'Nova' Vance",
+    "role": "Commander",
+    "baseline": {
+      "heart_rate_bpm": 52.0,
+      "spo2_pct": 98.5
+    },
+    "thresholds": [
+      {
+        "col": "heart_rate_bpm",
+        "op": ">",
+        "val": 90.0,
+        "level": "alert",
+        "msg": "Tachycardia (Personalized: > 90 bpm)"
+      },
+      {
+        "col": "heart_rate_bpm",
+        "op": ">",
+        "val": 80.0,
+        "level": "watch",
+        "msg": "Elevated HR (Personalized: > 80 bpm)"
+      }
+    ]
+  },
+  "MS-1": {
+    "name": "Dr. Elena Rossi",
+    "role": "Mission Specialist (Biology)",
+    "baseline": {
+      "heart_rate_bpm": 68.0,
+      "spo2_pct": 97.5
+    },
+    "thresholds": []
+  },
+  "MS-2": {
+    "name": "Kaito Sato",
+    "role": "Mission Specialist (Engineering)",
+    "baseline": {
+      "heart_rate_bpm": 74.0,
+      "spo2_pct": 97.0
+    },
+    "thresholds": [
+      {
+        "col": "body_temp_c",
+        "op": ">",
+        "val": 38.2,
+        "level": "alert",
+        "msg": "Fever (Personalized: > 38.2 C)"
+      },
+      {
+        "col": "body_temp_c",
+        "op": ">",
+        "val": 37.8,
+        "level": "watch",
+        "msg": "Low-grade fever (Personalized: > 37.8 C)"
+      }
+    ]
+  },
+  "PLT-1": {
+    "name": "Sarah 'Skye' Miller",
+    "role": "Pilot",
+    "baseline": {
+      "heart_rate_bpm": 62.0,
+      "spo2_pct": 98.0
+    },
+    "thresholds": [
+      {
+        "col": "sleep_hours",
+        "op": "<",
+        "val": 5.0,
+        "level": "watch",
+        "msg": "Sleep deprivation (Personalized: < 5.0 h)"
+      }
+    ]
+  }
+}

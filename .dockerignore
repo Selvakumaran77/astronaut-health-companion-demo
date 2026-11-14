@@ -1,0 +1,12 @@
+.git
+.venv
+venv
+__pycache__
+*.py[cod]
+tests
+resources
+data/raw
+data/badges
+data/astronaut_badges.sqlite3*
+data/mission_numbers.csv
+wearable-device-dataset*
