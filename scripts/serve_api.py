@@ -755,6 +755,16 @@ def make_handler(app: App):
                 with open(image_path, "rb") as image_file:
                     return self._send(200, image_file.read(), "image/jpeg")
 
+            if path == "/assets/images/human.jpg":
+                image_path = os.path.join(
+                    ROOT, "app", "assets", "images", "human.jpg"
+                )
+                if not os.path.isfile(image_path):
+                    return self._send(404, b"body map image is missing",
+                                      "text/plain; charset=utf-8")
+                with open(image_path, "rb") as image_file:
+                    return self._send(200, image_file.read(), "image/jpeg")
+
             if path == "/api/scan":
                 return self._json({"error": "method not allowed"}, 405)
 

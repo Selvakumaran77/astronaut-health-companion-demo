@@ -57,10 +57,10 @@
   .wellbeing-form input,.wellbeing-form select{display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#1b2338;color:var(--text);font:inherit}
   .wellbeing-form button{grid-column:1/-1;justify-self:start}
   .body-map-layout{display:grid;grid-template-columns:minmax(150px,250px) 1fr;gap:18px;align-items:center}
-  .body-map-svg{width:100%;height:auto;max-height:360px}
-  .body-map-svg [role=button]{cursor:pointer}
-  .body-map-svg [role=button]:focus{outline:none}
-  .body-map-svg [role=button]:focus circle,.body-map-svg [role=button]:hover circle{stroke:#fff;stroke-width:3}
+  .body-map-figure{position:relative;width:min(100%,240px);justify-self:center;overflow:hidden;border-radius:12px;background:#fff;line-height:0}
+  .body-map-image{display:block;width:100%;height:auto;max-height:360px;object-fit:contain}
+  .body-map-marker{position:absolute;left:var(--marker-x);top:var(--marker-y);width:30px;height:30px;padding:0;transform:translate(-50%,-50%);border:2px solid #fff;border-radius:50%;background:var(--marker-color);color:#07101f;line-height:1;box-shadow:0 1px 5px rgba(0,0,0,.7)}
+  .body-map-marker:hover,.body-map-marker:focus-visible{outline:3px solid #fff;outline-offset:2px}
   .hazard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
   .hazard-tip{padding:11px;border:1px solid var(--line);border-radius:9px;background:#10182b}
   .hazard-tip strong{display:block;margin-bottom:4px}
@@ -75,7 +75,7 @@
   .review-table th,.review-table td{padding:8px;border-bottom:1px solid var(--line);text-align:left}
   .local-queue-item{padding:8px;border-bottom:1px solid var(--line)}
   .inline-error{min-height:1.4em;color:var(--red)}
-  @media(max-width:620px){.body-map-layout{grid-template-columns:1fr}.body-map-svg{max-height:280px}.review-table{display:block;overflow-x:auto}}
+  @media(max-width:620px){.body-map-layout{grid-template-columns:1fr}.body-map-figure{width:min(100%,220px)}.review-table{display:block;overflow-x:auto}}
   .agent-widget{position:fixed;left:18px;bottom:18px;z-index:5;width:min(370px,calc(100vw - 36px));font-size:14px}
   .agent-panel{display:flex;flex-direction:column;max-height:min(72vh,620px);margin-bottom:10px;overflow:hidden;background:rgba(14,20,37,.98);border:1px solid #40506f;border-radius:14px;box-shadow:0 16px 46px rgba(0,0,0,.5)}
   .agent-header{display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border-bottom:1px solid var(--line)}
@@ -332,20 +332,17 @@
       </div>
     </section>
     <section id="bodyPanel" class="panel hidden">
-      <h2>Clickable body-system trend map</h2>
-      <p class="muted">Select a marker to graph its related indicator. This is a navigation aid, not a medical body map or diagnostic visualization.</p>
+      <h2 id="bodyMapTitle">Clickable body-system trend map</h2>
+      <p id="bodyMapDescription" class="muted">Select a marker to graph its related indicator. The anatomical image is for navigation only, not a diagnostic visualization.</p>
       <div class="body-map-layout">
-        <svg class="body-map-svg" viewBox="0 0 240 410" role="img" aria-labelledby="bodyMapTitle bodyMapDescription">
-          <title id="bodyMapTitle">Astronaut body-system trend map</title>
-          <desc id="bodyMapDescription">Select a highlighted system marker to view its associated indicator history.</desc>
-          <path d="M92 45 C70 50 61 74 66 99 L76 139 L62 188 L77 221 L84 178 L89 146 L87 219 L75 290 L80 355 L94 355 L105 270 L113 233 L121 270 L132 355 L147 355 L150 290 L137 219 L142 146 L151 178 L158 221 L173 188 L159 139 L169 99 C174 74 165 50 143 45 C132 56 103 56 92 45Z" fill="#263653" stroke="#90a8cb" stroke-width="2"/>
-          <circle cx="118" cy="33" r="24" fill="#263653" stroke="#90a8cb" stroke-width="2"/>
-          <g role="button" tabindex="0" aria-label="Brain and behavioral health: mood self-report" data-body-metric="mood_score_1_10"><circle cx="118" cy="31" r="9" fill="#c28fff"/><text x="118" y="35" text-anchor="middle" fill="#07101f" font-size="9">M</text></g>
-          <g role="button" tabindex="0" aria-label="Heart and circulation: heart rate" data-body-metric="heart_rate_bpm"><circle cx="111" cy="112" r="10" fill="#ff7080"/><text x="111" y="116" text-anchor="middle" fill="#07101f" font-size="9">H</text></g>
-          <g role="button" tabindex="0" aria-label="Lungs and breathing: oxygen and respiratory rate" data-body-metric="spo2_pct"><circle cx="130" cy="111" r="10" fill="#75d9e8"/><text x="130" y="115" text-anchor="middle" fill="#07101f" font-size="9">L</text></g>
-          <g role="button" tabindex="0" aria-label="Bone and muscle: bone-density change" data-body-metric="bone_density_pct_change"><circle cx="118" cy="193" r="10" fill="#ffc65c"/><text x="118" y="197" text-anchor="middle" fill="#07101f" font-size="9">B</text></g>
-          <g role="button" tabindex="0" aria-label="Immune health: white blood cells" data-body-metric="wbc_1e9_per_L"><circle cx="139" cy="156" r="10" fill="#8fe08a"/><text x="139" y="160" text-anchor="middle" fill="#07101f" font-size="9">I</text></g>
-        </svg>
+        <div class="body-map-figure" role="group" aria-labelledby="bodyMapTitle" aria-describedby="bodyMapDescription">
+          <img class="body-map-image" src="/assets/images/human.jpg" alt="Anatomical human body illustration">
+          <button type="button" class="body-map-marker" style="--marker-x:50%;--marker-y:13%;--marker-color:#c28fff" aria-label="Brain and behavioral health: mood self-report" data-body-metric="mood_score_1_10">M</button>
+          <button type="button" class="body-map-marker" style="--marker-x:50%;--marker-y:38%;--marker-color:#ff7080" aria-label="Heart and circulation: heart rate" data-body-metric="heart_rate_bpm">H</button>
+          <button type="button" class="body-map-marker" style="--marker-x:61%;--marker-y:37%;--marker-color:#75d9e8" aria-label="Lungs and breathing: oxygen and respiratory rate" data-body-metric="spo2_pct">L</button>
+          <button type="button" class="body-map-marker" style="--marker-x:50%;--marker-y:62%;--marker-color:#ffc65c" aria-label="Bone and muscle: bone-density change" data-body-metric="bone_density_pct_change">B</button>
+          <button type="button" class="body-map-marker" style="--marker-x:64%;--marker-y:49%;--marker-color:#8fe08a" aria-label="Immune health: white blood cells" data-body-metric="wbc_1e9_per_L">I</button>
+        </div>
         <div>
           <p id="bodyMapSelection" class="muted">Choose a highlighted body marker.</p>
           <p>Additional indicator groups:</p>

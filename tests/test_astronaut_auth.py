@@ -101,6 +101,9 @@ class AstronautAuthTests(unittest.TestCase):
         self.assertIn('id="crewCards"', page)
         self.assertIn('element("button","astronaut-card")', page)
         self.assertIn("/assets/images/card_background.jpg", page)
+        self.assertIn('src="/assets/images/human.jpg"', page)
+        self.assertIn('class="body-map-marker"', page)
+        self.assertNotIn('class="body-map-svg"', page)
         self.assertIn("Select an astronaut", page)
         self.assertIn('pattern="[0-9]{20}"', page)
         self.assertIn('src="/assets/videos/background.mp4"', page)
@@ -297,6 +300,14 @@ class AstronautAuthTests(unittest.TestCase):
     def test_astronaut_card_background_is_served_as_jpeg(self):
         with build_opener().open(
             self.base_url + "/assets/images/card_background.jpg", timeout=5
+        ) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.headers.get_content_type(), "image/jpeg")
+            self.assertGreater(len(response.read()), 0)
+
+    def test_body_map_image_is_served_as_jpeg(self):
+        with build_opener().open(
+            self.base_url + "/assets/images/human.jpg", timeout=5
         ) as response:
             self.assertEqual(response.status, 200)
             self.assertEqual(response.headers.get_content_type(), "image/jpeg")
