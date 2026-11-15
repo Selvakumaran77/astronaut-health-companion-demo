@@ -25,7 +25,13 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 from healthmon.auth import AuthStore  # noqa: E402
 from healthmon.features import BASE_FIELDS  # noqa: E402
-from serve_api import App, DEFAULT_DATA, DEFAULT_MODEL, make_handler  # noqa: E402
+from serve_api import (  # noqa: E402
+    App,
+    DEFAULT_DATA,
+    DEFAULT_MODEL,
+    _normalized_file_sha256,
+    make_handler,
+)
 
 
 class AstronautAuthTests(unittest.TestCase):
@@ -278,6 +284,15 @@ class AstronautAuthTests(unittest.TestCase):
                 os.path.join(self.temp_dir.name, "public.sqlite3"),
                 public_demo=True,
             )
+
+    def test_public_demo_signature_normalizes_line_endings(self):
+        signatures = []
+        for line_ending in (b"\n", b"\r\n"):
+            path = os.path.join(self.temp_dir.name, f"data-{len(signatures)}.csv")
+            with open(path, "wb") as data_file:
+                data_file.write(b"header,value" + line_ending + b"row,1" + line_ending)
+            signatures.append(_normalized_file_sha256(path))
+        self.assertEqual(signatures[0], signatures[1])
 
     def test_astronaut_card_background_is_served_as_jpeg(self):
         with build_opener().open(

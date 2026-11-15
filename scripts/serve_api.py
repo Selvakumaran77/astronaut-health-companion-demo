@@ -64,7 +64,7 @@ DEFAULT_WEARABLE_DATASET = os.path.abspath(os.path.join(
 LOGIN_PAGE = os.path.join(ROOT, "app", "astronaut.html")
 PROFILES = os.path.join(ROOT, "data", "crew_profiles.json")
 DEFAULT_AUTH_DB = os.path.join(ROOT, "data", "astronaut_badges.sqlite3")
-PUBLIC_DEMO_DATA_SHA256 = "cfd3517e9459a592a45b9c16270a3d5d00c44ed8434a0fa8a6db2da981fed669"
+PUBLIC_DEMO_DATA_SHA256 = "02d73b9913578944e6d69daf9f81f8d408362028e2f4190ebb0de554084abb12"
 PUBLIC_DEMO_PROFILES_SHA256 = "a08f36ddfc4f4dbcefad31c9d263d364250f2c447a98de29e15c6eba32d873b6"
 NEWS_FEEDS = {
     "sports": {
@@ -77,6 +77,13 @@ NEWS_FEEDS = {
     },
 }
 NEWS_MAX_AGE = timedelta(hours=48)
+
+
+def _normalized_file_sha256(path: str) -> str:
+    with open(path, "rb") as file:
+        content = file.read().replace(b"\r\n", b"\n")
+    return hashlib.sha256(content).hexdigest()
+
 
 ADVICE_BY_FIELD = {
     "spo2_pct": "Repeat the measurement only as allowed by mission protocol; promptly contact the flight surgeon if it remains low or symptoms occur.",
@@ -197,10 +204,8 @@ class App:
             raise ValueError("Choose either the synthetic or wearable demo mode.")
         self.rows = load_rows(data_path)
         if public_demo:
-            with open(data_path, "rb") as data_file:
-                data_signature = hashlib.sha256(data_file.read()).hexdigest()
-            with open(PROFILES, "rb") as profiles_file:
-                profiles_signature = hashlib.sha256(profiles_file.read()).hexdigest()
+            data_signature = _normalized_file_sha256(data_path)
+            profiles_signature = _normalized_file_sha256(PROFILES)
             if (
                 os.path.abspath(data_path) != os.path.abspath(DEFAULT_DATA)
                 or data_signature != PUBLIC_DEMO_DATA_SHA256
