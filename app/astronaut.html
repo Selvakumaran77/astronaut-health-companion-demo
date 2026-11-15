@@ -49,6 +49,25 @@
   .chart-legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
   .status-banner{font-size:18px;font-weight:700;padding:14px;border:1px solid var(--line);border-radius:10px;margin:14px 0}
   .earth-escalation{margin:12px 0;border-left-color:var(--red);background:rgba(255,93,108,.12);color:var(--text)}
+  .follow-up-heading{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .follow-up-count{margin:0;color:var(--muted);font-size:13px}
+  .follow-up-list{display:grid;gap:12px}
+  .follow-up-card{padding:16px;border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:11px;background:#10182b}
+  .follow-up-card.critical{border-left-color:var(--red)}
+  .follow-up-card h3{margin:0;font-size:18px}
+  .follow-up-card h4{margin:12px 0 4px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .follow-up-card p{margin:5px 0}
+  .follow-up-card ul{margin-top:5px}
+  .follow-up-status{display:inline-block;padding:3px 9px;border:1px solid currentColor;border-radius:999px;font-size:12px;font-weight:750;white-space:nowrap}
+  .follow-up-status.watch{color:var(--amber)}
+  .follow-up-status.critical{color:var(--red)}
+  .follow-up-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .follow-up-reading{font-size:25px;font-weight:750}
+  .follow-up-meta{color:var(--muted);font-size:13px}
+  .follow-up-section{margin-top:10px}
+  .follow-up-contact{padding:9px 11px;border-radius:8px;background:rgba(255,198,92,.09)}
+  .follow-up-card.critical .follow-up-contact{background:rgba(255,93,108,.12)}
+  .follow-up-empty{padding:14px;border:1px solid var(--line);border-radius:10px;background:#10182b}
   .companion-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
   .companion-card{background:#10182b;border:1px solid var(--line);border-radius:11px;padding:14px}
   .companion-card h3{margin:0 0 8px;font-size:16px}
@@ -209,7 +228,11 @@
       <div id="stats" class="grid"></div>
     </div>
     <div class="panel"><h2>Condition signals</h2><p id="signals" class="muted"></p><ul id="signalList"></ul></div>
-    <div class="panel"><h2>Suggested follow-up</h2><ul id="advice"></ul></div>
+    <div class="panel">
+      <div class="follow-up-heading"><h2>Suggested follow-up</h2><p id="followUpCount" class="follow-up-count"></p></div>
+      <div id="followUps" class="follow-up-list" aria-live="polite"></div>
+      <p class="muted">Uses existing configured demonstration rules only; these thresholds and recommendations are not clinically validated. The report evaluates recorded readings when refreshed or updated, not a continuous sensor stream. A normal repeat does not by itself clear a prior critical result; follow mission protocol and obtain medical review. This prototype does not record clinician clearance.</p>
+    </div>
     <div class="panel"><h2>Latest measurements</h2><div id="measurements" class="metrics"></div></div>
     <section class="chart-panel">
       <h2 id="indicatorChartTitle">Indicator trend</h2>
@@ -456,6 +479,71 @@ const metricLabels={
 function element(tag,className,text){const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node}
 function stat(label,value,cls){const node=element("div","stat");node.append(element("div","muted",label));node.append(element("div","value "+(cls||""),value));return node}
 async function request(path,options){const response=await fetch(path,{credentials:"same-origin",...options,headers:{"Content-Type":"application/json",...(options&&options.headers||{})}});const data=await response.json();if(!response.ok)throw new Error(data.error||"Request failed.");return data}
+function formatFollowUpValue(value,unit){const number=Number(value);return `${Number.isFinite(number)?number.toLocaleString(undefined,{maximumFractionDigits:2}):value} ${unit||""}`.trim()}
+function renderFollowUps(data){
+  const cards=Array.isArray(data.follow_ups)?data.follow_ups:[];
+  const count=document.getElementById("followUpCount");
+  count.textContent=cards.length?`${cards.length} ${cards.length===1?"action":"actions"} required`:"No active configured alerts";
+  const container=document.getElementById("followUps");container.replaceChildren();
+  if(!cards.length){
+    const empty=element("div","follow-up-empty");
+    empty.append(element("p","", "No parameter-specific WATCH or CRITICAL finding is active under the configured demonstration rules."));
+    empty.append(element("p","muted","This does not rule out a health concern. Follow mission medical protocol and contact support for symptoms or worsening condition."));
+    if(data.risk_indicator.state!=="safe")empty.append(element("p","muted",`Separate model indicator: ${data.risk_indicator.label}. This estimate is illustrative, not a clinical classification.`));
+    container.append(empty);return;
+  }
+  for(const item of cards){
+    const card=element("article",`follow-up-card ${item.severity}`);
+    const heading=element("div","follow-up-top");
+    heading.append(element("h3","",item.title||item.label));
+    heading.append(element("span",`follow-up-status ${item.severity}`,item.status));
+    card.append(heading);
+    if(item.parameters){
+      card.append(element("h4","follow-up-section","Signals in this pattern"));
+      const readings=element("ul","");
+      for(const parameter of item.parameters){
+        const source=parameter.threshold_source==="profile"?"personalized profile threshold":"configured demo threshold";
+        const threshold=parameter.threshold===null?"":` · ${parameter.comparison} ${source} ${formatFollowUpValue(parameter.threshold,parameter.unit)}`;
+        const trend=parameter.trend&&parameter.trend!=="first_reading"?` · ${parameter.trend} than prior reading`:"";
+        const baselineName=parameter.baseline_source==="preflight"?"recorded preflight baseline":"synthetic profile baseline";
+        const baseline=parameter.baseline===null?"":` · ${parameter.baseline_comparison} ${baselineName} (${formatFollowUpValue(parameter.baseline,parameter.unit)})`;
+        const line=element("li","");
+        line.append(element("strong","",`${parameter.label}: ${formatFollowUpValue(parameter.value,parameter.unit)}`));
+        line.append(document.createTextNode(` · ${parameter.status}${threshold}${baseline}${trend}`));
+        readings.append(line);
+      }
+      card.append(readings);
+    }else{
+      card.append(element("p","follow-up-reading",formatFollowUpValue(item.value,item.unit)));
+      const source=item.threshold_source==="profile"?"personalized profile threshold":"configured demo threshold";
+      const comparison=item.threshold===null
+        ?`${item.comparison} ${source}`
+        :`${item.comparison} ${source} ${formatFollowUpValue(item.threshold,item.unit)}`;
+      const metadata=[`Illustrative reading · ${comparison}`];
+      if(item.baseline!==null){
+        const baselineName=item.baseline_source==="preflight"?"recorded preflight baseline":"synthetic profile baseline";
+        metadata.push(`${item.baseline_comparison} ${baselineName} (${formatFollowUpValue(item.baseline,item.unit)})`);
+      }
+      if(item.trend==="higher"||item.trend==="lower"){
+        metadata.push(`${item.trend} than prior reading (${formatFollowUpValue(item.previous_value,item.unit)})`);
+      }else if(item.trend==="unchanged")metadata.push("unchanged from prior reading");
+      card.append(element("p","follow-up-meta",metadata.join(" · ")));
+    }
+    card.append(element("h4","follow-up-section","What is happening?"));
+    card.append(element("p","",item.what||`${item.label} is ${item.comparison} its configured review limit. This does not establish a diagnosis.`));
+    card.append(element("h4","follow-up-section","Possible context (not a diagnosis)"));
+    card.append(element("p","",item.factors));
+    card.append(element("h4","follow-up-section","Recommended actions"));
+    const actions=element("ul","");for(const action of item.actions)actions.append(element("li","",action));card.append(actions);
+    card.append(element("h4","follow-up-section","Precautions"));
+    const precautions=element("ul","");for(const precaution of item.precautions)precautions.append(element("li","",precaution));card.append(precautions);
+    card.append(element("h4","follow-up-section","Follow-up"));
+    card.append(element("p","",item.follow_up));
+    const contact=element("p","follow-up-contact");contact.append(element("strong","", "When to contact medical support: "));contact.append(document.createTextNode(item.contact));
+    card.append(contact);
+    container.append(card);
+  }
+}
 function render(data){
   crewHome.classList.add("hidden");missionPanel.classList.add("hidden");wearableReport.classList.add("hidden");report.classList.remove("hidden");logout.classList.remove("hidden");
   currentReport=data;
@@ -492,8 +580,7 @@ function render(data){
   const signals=document.getElementById("signalList");signals.replaceChildren();
   for(const message of data.status.reasons)signals.append(element("li","",message));
   document.getElementById("signals").textContent=data.status.reasons.length?"Rule-based indicators requiring attention (not diagnoses):":"No configured alert thresholds were crossed in the latest reading.";
-  const advice=document.getElementById("advice");advice.replaceChildren();
-  for(const item of data.advice)advice.append(element("li","",item));
+  renderFollowUps(data);
   const measurements=document.getElementById("measurements");measurements.replaceChildren();
   for(const [key,[label,unit]] of Object.entries(metricLabels)){
     const value=data.latest[key];if(value===null||value===undefined||value==="")continue;
@@ -1199,6 +1286,7 @@ function downloadHandoff(data){
     recent_trend:Array.isArray(data.history)?data.history.slice(-7):[],
     weekly_summary:data.weekly_summary||null,
     suggested_follow_up:data.advice,
+    suggested_follow_up_details:data.follow_ups||[],
     disclaimer:"Synthetic-data demonstration only; not clinically validated or diagnostic. Use only an approved mission medical channel for any later transmission."
   };
   const blob=new Blob([JSON.stringify(handoff,null,2)],{type:"application/json"});

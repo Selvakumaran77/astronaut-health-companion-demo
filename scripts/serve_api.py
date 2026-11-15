@@ -41,12 +41,13 @@ from urllib.request import Request as URLRequest, urlopen
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "src"))
 
-from healthmon.alerts import RULES, evaluate_row, summarize  # noqa: E402
+from healthmon.alerts import LEVEL_RANK, RULES, evaluate_row, summarize  # noqa: E402
 from healthmon.auth import AuthStore, SESSION_TTL_SECONDS  # noqa: E402
 from healthmon.companion import CompanionStore  # noqa: E402
 from healthmon.features import BASE_FIELDS, build_dataset  # noqa: E402
 from healthmon.model import LogisticRegression, top_features  # noqa: E402
 from healthmon.notifications import build_notifications, summarize_notifications  # noqa: E402
+from healthmon.recommendations import build_follow_ups  # noqa: E402
 from healthmon.wearable import (  # noqa: E402
     health_indicator_catalog,
     load_wearable_dataset,
@@ -439,6 +440,10 @@ class App:
             and stored_baseline[2] == self.model_signature
         )
         preflight_baseline = stored_baseline if baseline_matches_model else None
+        preflight_measurements = (
+            self.auth.preflight_measurements_for_crew(crew_id)
+            if baseline_matches_model else None
+        )
         personal_baseline = preflight_baseline[0] / 100 if preflight_baseline else None
         personal_safe_line = min(
             self.model.threshold,
@@ -470,8 +475,8 @@ class App:
         override_columns = {rule["col"] for rule in personal_thresholds}
         thresholds = [rule for rule in RULES if rule["col"] not in override_columns]
         thresholds.extend(personal_thresholds)
-        flags: list[dict] = []
-        seen: set[str] = set()
+        personalized_rule_ids = {id(rule) for rule in personal_thresholds}
+        flags_by_field: dict[str, dict] = {}
         for rule in thresholds:
             value = latest.get(rule["col"])
             if value in (None, ""):
@@ -481,9 +486,29 @@ class App:
             except (TypeError, ValueError):
                 continue
             hit = number < rule["val"] if rule["op"] == "<" else number > rule["val"]
-            if hit and rule["col"] not in seen:
-                seen.add(rule["col"])
-                flags.append(rule)
+            current = flags_by_field.get(rule["col"])
+            if hit and (
+                current is None
+                or LEVEL_RANK[rule["level"]] > LEVEL_RANK[current["level"]]
+            ):
+                flags_by_field[rule["col"]] = {
+                    **rule,
+                    "reading": number,
+                    "personalized": id(rule) in personalized_rule_ids,
+                }
+        flags = list(flags_by_field.values())
+        profile_baseline = self.profiles.get(crew_id, {}).get("baseline", {})
+        follow_up_baselines = preflight_measurements or profile_baseline
+        follow_up_baseline_source = (
+            "preflight" if preflight_measurements else "synthetic profile"
+        )
+        follow_ups = build_follow_ups(
+            flags,
+            latest,
+            rows[-2] if len(rows) > 1 else None,
+            follow_up_baselines,
+            follow_up_baseline_source,
+        )
         advice = [ADVICE_BY_FIELD.get(rule["col"],
                   "Review this reading with the flight surgeon and follow mission medical protocols.")
                   for rule in flags]
@@ -523,14 +548,13 @@ class App:
                 "rising_line": round(rising_line, 4),
                 "baseline_set": preflight_baseline is not None,
                 "baseline_stale": stored_baseline is not None and not baseline_matches_model,
-                "preflight_measurements": self.auth.preflight_measurements_for_crew(
-                    crew_id
-                ) if baseline_matches_model else None,
+                "preflight_measurements": preflight_measurements,
                 "flight_surgeon_follow_up": indicator != "safe",
                 "basis": "Earth-side preflight B-score (when recorded), model threshold, and current rule status; illustrative, not clinically validated",
             },
             "model_test_auc": test_metrics.get("roc_auc"),
             "advice": advice,
+            "follow_ups": follow_ups,
             "disclaimer": "Synthetic-data demonstration, not clinically validated or diagnostic. Follow mission protocols and consult the flight surgeon.",
         }
 
@@ -1055,6 +1079,7 @@ def make_handler(app: App):
                     "recent_trend": app.report_history(crew_id)[-7:],
                     "weekly_summary": app.weekly_summary(crew_id),
                     "suggested_follow_up": report["advice"],
+                    "suggested_follow_up_details": report["follow_ups"],
                     "trigger": (
                         "above_safe_demo_indicator" if above_safe
                         else "astronaut_self_reported_urgent_symptoms"

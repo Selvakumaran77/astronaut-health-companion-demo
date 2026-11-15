@@ -130,6 +130,9 @@ class AstronautAuthTests(unittest.TestCase):
         self.assertNotIn("Avery Morgan", page)
         self.assertIn('id="earthEscalation"', page)
         self.assertIn("consult an Earth-based doctor or flight surgeon promptly", page)
+        self.assertIn('id="followUps"', page)
+        self.assertIn("Possible context (not a diagnosis)", page)
+        self.assertIn("A normal repeat does not by itself clear a prior critical result", page)
         self.assertIn('transmitted:false', page)
         self.assertIn("without transmitting data", page)
         self.assertIn('id="wellbeingForm"', page)
@@ -341,6 +344,21 @@ class AstronautAuthTests(unittest.TestCase):
         self.assertEqual(report["status"]["level"], "watch")
         self.assertTrue(any("Personalized" in reason for reason in report["status"]["reasons"]))
         self.assertTrue(any("resting measurement" in advice for advice in report["advice"]))
+        self.assertEqual(len(report["follow_ups"]), 1)
+        follow_up = report["follow_ups"][0]
+        self.assertEqual(follow_up["field"], "heart_rate_bpm")
+        self.assertEqual(follow_up["status"], "WATCH")
+        self.assertEqual(follow_up["value"], 85.0)
+        self.assertEqual(follow_up["comparison"], "above")
+        self.assertEqual(follow_up["threshold"], 80.0)
+        self.assertEqual(follow_up["threshold_source"], "profile")
+        self.assertEqual(follow_up["baseline"], 52.0)
+        self.assertEqual(follow_up["baseline_comparison"], "above")
+        self.assertEqual(follow_up["baseline_source"], "synthetic profile")
+        self.assertEqual(follow_up["trend"], "higher")
+        self.assertTrue(follow_up["actions"])
+        self.assertTrue(follow_up["follow_up"])
+        self.assertTrue(follow_up["contact"])
         self.assertEqual(self.request("/readings?crew=MS-1", opener=self.browser)[0], 403)
 
         status, result = self.request(
@@ -354,6 +372,86 @@ class AstronautAuthTests(unittest.TestCase):
 
         self.assertEqual(self.request("/api/logout", opener=self.browser, method="POST", body={})[0], 200)
         self.assertEqual(self.request("/api/me/report", opener=self.browser)[0], 401)
+
+    def test_simultaneous_cardiorespiratory_alerts_are_grouped(self):
+        latest = self.app.by_crew()["CDR-1"][-1]
+        latest["heart_rate_bpm"] = 105.0
+        latest["spo2_pct"] = 92.0
+
+        report = self.app.report("CDR-1")
+
+        self.assertEqual(report["status"]["level"], "alert")
+        self.assertEqual(len(report["follow_ups"]), 1)
+        pattern = report["follow_ups"][0]
+        self.assertEqual(pattern["kind"], "pattern")
+        self.assertEqual(pattern["id"], "cardiorespiratory")
+        self.assertEqual(pattern["status"], "CRITICAL")
+        self.assertEqual(
+            {item["field"] for item in pattern["parameters"]},
+            {"heart_rate_bpm", "spo2_pct"},
+        )
+        self.assertTrue(any("notify onboard medical support now" in action.lower()
+                            for action in pattern["actions"]))
+
+    def test_simultaneous_sleep_and_mood_findings_are_grouped(self):
+        latest = self.app.by_crew()["PLT-1"][-1]
+        latest["sleep_hours"] = 4.0
+        latest["mood_score_1_10"] = 4.0
+
+        report = self.app.report("PLT-1")
+        pattern = next(
+            item for item in report["follow_ups"]
+            if item.get("id") == "crew_wellbeing"
+        )
+
+        self.assertEqual(pattern["status"], "WATCH")
+        self.assertEqual(
+            {item["field"] for item in pattern["parameters"]},
+            {"sleep_hours", "mood_score_1_10"},
+        )
+        self.assertIn("Share the combined trend", " ".join(pattern["actions"]))
+
+    def test_unconfigured_low_heart_rate_does_not_invent_a_threshold(self):
+        latest = self.app.by_crew()["CDR-1"][-1]
+        latest["heart_rate_bpm"] = 40.0
+
+        report = self.app.report("CDR-1")
+
+        self.assertNotIn(
+            "heart_rate_bpm",
+            {item.get("field") for item in report["follow_ups"]},
+        )
+
+        self.app.profiles["CDR-1"]["thresholds"].append({
+            "col": "heart_rate_bpm",
+            "op": "<",
+            "val": 50.0,
+            "level": "watch",
+            "msg": "Configured low heart rate review threshold",
+        })
+        configured_report = self.app.report("CDR-1")
+        heart_rate = next(
+            item for item in configured_report["follow_ups"]
+            if item.get("field") == "heart_rate_bpm"
+        )
+        self.assertEqual(heart_rate["comparison"], "below")
+        self.assertEqual(heart_rate["status"], "WATCH")
+        self.assertTrue(any("dizziness" in action for action in heart_rate["actions"]))
+
+    def test_follow_up_uses_highest_personalized_threshold_severity(self):
+        crew = self.app.by_crew()["CDR-1"]
+        crew[-1]["heart_rate_bpm"] = 95.0
+        self.app.profiles["CDR-1"]["thresholds"].reverse()
+
+        report = self.app.report("CDR-1")
+        heart_rate = next(
+            item for item in report["follow_ups"]
+            if item.get("field") == "heart_rate_bpm"
+        )
+
+        self.assertEqual(report["status"]["level"], "alert")
+        self.assertEqual(heart_rate["status"], "CRITICAL")
+        self.assertEqual(heart_rate["threshold"], 90.0)
 
     def test_mission_number_sign_in_is_crew_scoped(self):
         number = self.auth.issue_mission_number("CDR-1")
@@ -421,6 +519,24 @@ class AstronautAuthTests(unittest.TestCase):
         self.assertFalse(stale["baseline_set"])
         with self.assertRaises(ValueError):
             self.app.auth.set_preflight_baseline("CDR-1", 101.0, self.app.model_signature)
+
+    def test_follow_up_prefers_recorded_preflight_measurement_baseline(self):
+        self.app.by_crew()["CDR-1"][-1]["heart_rate_bpm"] = 85.0
+        self.app.auth.set_preflight_baseline(
+            "CDR-1",
+            20.0,
+            self.app.model_signature,
+            {"heart_rate_bpm": 70.0},
+        )
+
+        report = self.app.report("CDR-1")
+        heart_rate = next(
+            item for item in report["follow_ups"]
+            if item.get("field") == "heart_rate_bpm"
+        )
+
+        self.assertEqual(heart_rate["baseline"], 70.0)
+        self.assertEqual(heart_rate["baseline_source"], "preflight")
 
     def test_preflight_checkup_file_is_scored_and_recorded(self):
         auth_db = os.path.join(self.temp_dir.name, "ground-checkup.sqlite3")
