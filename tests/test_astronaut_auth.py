@@ -131,8 +131,10 @@ class AstronautAuthTests(unittest.TestCase):
         self.assertIn('id="earthEscalation"', page)
         self.assertIn("consult an Earth-based doctor or flight surgeon promptly", page)
         self.assertIn('id="followUps"', page)
-        self.assertIn("Possible context (not a diagnosis)", page)
-        self.assertIn("A normal repeat does not by itself clear a prior critical result", page)
+        self.assertIn('id="agentAdvice"', page)
+        self.assertIn('showFollowUpInAgent(data,status)', page)
+        self.assertNotIn("Possible context (not a diagnosis)", page)
+        self.assertIn("A normal repeat alone does not clear a prior critical result", page)
         self.assertIn('transmitted:false', page)
         self.assertIn("without transmitting data", page)
         self.assertIn('id="wellbeingForm"', page)
@@ -392,6 +394,22 @@ class AstronautAuthTests(unittest.TestCase):
         )
         self.assertTrue(any("notify onboard medical support now" in action.lower()
                             for action in pattern["actions"]))
+
+    def test_parameter_statuses_report_normal_watch_and_critical_levels(self):
+        latest = self.app.by_crew()["CDR-1"][-1]
+        latest["heart_rate_bpm"] = 85.0
+        latest["spo2_pct"] = 98.0
+        latest["wbc_1e9_per_L"] = 2.0
+
+        report = self.app.report("CDR-1")
+        statuses = {
+            item["field"]: item["level"]
+            for item in report["parameter_statuses"]
+        }
+
+        self.assertEqual(statuses["heart_rate_bpm"], "watch")
+        self.assertEqual(statuses["spo2_pct"], "normal")
+        self.assertEqual(statuses["wbc_1e9_per_L"], "alert")
 
     def test_simultaneous_sleep_and_mood_findings_are_grouped(self):
         latest = self.app.by_crew()["PLT-1"][-1]

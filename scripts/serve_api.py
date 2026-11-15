@@ -497,6 +497,23 @@ class App:
                     "personalized": id(rule) in personalized_rule_ids,
                 }
         flags = list(flags_by_field.values())
+        parameter_statuses = []
+        seen_parameter_fields = set()
+        for rule in thresholds:
+            field = rule["col"]
+            if field in seen_parameter_fields:
+                continue
+            seen_parameter_fields.add(field)
+            try:
+                value = float(latest[field])
+            except (KeyError, TypeError, ValueError):
+                continue
+            active_flag = flags_by_field.get(field)
+            parameter_statuses.append({
+                "field": field,
+                "level": active_flag["level"] if active_flag else "normal",
+                "value": value,
+            })
         profile_baseline = self.profiles.get(crew_id, {}).get("baseline", {})
         follow_up_baselines = preflight_measurements or profile_baseline
         follow_up_baseline_source = (
@@ -554,6 +571,7 @@ class App:
             },
             "model_test_auc": test_metrics.get("roc_auc"),
             "advice": advice,
+            "parameter_statuses": parameter_statuses,
             "follow_ups": follow_ups,
             "disclaimer": "Synthetic-data demonstration, not clinically validated or diagnostic. Follow mission protocols and consult the flight surgeon.",
         }

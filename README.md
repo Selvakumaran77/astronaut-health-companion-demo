@@ -106,11 +106,11 @@ The authenticated synthetic astronaut report also includes:
   SQLite demo database, assigned the next mission day, and used in the next report and risk
   trend. The form pre-fills the preceding demo values for convenience; replace them with a
   complete measurement set rather than treating copied values as new observations.
-- Structured suggested-follow-up cards for parameters that cross an existing configured
-  demonstration rule. Cards show the reading, rule limit, profile reference/trend where
-  available, non-diagnostic context, actions, precautions, and when to seek medical review.
-  Concurrent cardiorespiratory and sleep/mood/cognitive findings can be grouped into one
-  pattern card. This adds guidance, not new thresholds.
+- A compact suggested-follow-up list showing each parameter with an existing configured
+  demonstration rule and its normal/watch/critical status. Selecting a parameter opens its
+  reading, rule limit, available baseline/trend, context, actions, precautions, and medical
+  follow-up guidance in the crew wellbeing agent. Concurrent cardiorespiratory and
+  sleep/mood/cognitive findings can share combined guidance. This adds no new thresholds.
 - Seven-recorded-day summary, indicator trend charts, a clickable body-system navigation map,
   and spacecraft/ISS/lunar-base display modes. Environment modes are visual only and do not
   connect to vehicle sensors.
@@ -134,10 +134,11 @@ permission and the page to remain open; they do not guarantee that a daily check
 Urgent symptoms must be handled through mission emergency procedures; the local queue is not
 monitored or transmitted.
 
-Suggested-follow-up cards are generated from the latest recorded reading and existing
-demonstration thresholds; the app does not stream sensors continuously. A normal recheck is not
-medical clearance, but this prototype does not store a clinician's resolution of a critical
-event. Follow mission protocol and obtain medical review.
+Suggested-follow-up statuses are generated from the latest recorded reading and existing
+demonstration thresholds; the app does not stream sensors continuously. Status colors reflect
+configured rules only, not clinical assessment. A normal recheck is not medical clearance, but
+this prototype does not store a clinician's resolution of a critical event. Follow mission
+protocol and obtain medical review.
 
 The default server binds to localhost. Do not expose it directly on a network: HTTP
 does not encrypt badge codes or health data. For network access, use an HTTPS reverse
